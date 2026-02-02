@@ -543,6 +543,22 @@ fun NewProfileScreen(
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             )
                         }
+                        HorizontalDivider()
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(
+                                text = stringResource(R.string.profile_force_resolve),
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                            Switch(
+                                checked = uiState.forceResolve,
+                                onCheckedChange = viewModel::updateForceResolve,
+                            )
+                        }
                     }
                 }
             }
