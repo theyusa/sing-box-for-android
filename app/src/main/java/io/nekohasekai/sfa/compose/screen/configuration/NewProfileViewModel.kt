@@ -330,8 +330,8 @@ class NewProfileViewModel(application: Application) : AndroidViewModel(applicati
 
         return profile
     }
-}
-private suspend fun resolveDomainToIP(configJson: String): String {
+
+    private suspend fun resolveDomainToIP(configJson: String): String {  
         return withContext(Dispatchers.IO) {
             try {
                 val jsonObject = org.json.JSONObject(configJson)
@@ -341,13 +341,11 @@ private suspend fun resolveDomainToIP(configJson: String): String {
                     val outbound = outbounds.getJSONObject(i)
                     val server = outbound.optString("server", "")
                     
-                    // Sadece gerçek proxy outbound'ları işle (selector, urltest değil)
                     val type = outbound.optString("type", "")
                     if (type == "selector" || type == "urltest" || type == "direct" || type == "block") {
                         continue
                     }
                     
-                    // Server field varsa ve domain ise (IP değilse)
                     if (server.isNotEmpty() && !isIPAddress(server)) {
                         val resolvedIP = resolveDomain(server)
                         if (resolvedIP != null) {
@@ -360,15 +358,13 @@ private suspend fun resolveDomainToIP(configJson: String): String {
                 jsonObject.toString()
             } catch (e: Exception) {
                 android.util.Log.e("ForceResolve", "Error resolving domains", e)
-                configJson // Hata durumunda orijinal config'i döndür
+                configJson
             }
         }
     }
 
     private fun isIPAddress(address: String): Boolean {
-        // IPv4 regex
         val ipv4Pattern = "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
-        // IPv6 basit check
         val ipv6Pattern = "^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$"
         return address.matches(ipv4Pattern.toRegex()) || address.matches(ipv6Pattern.toRegex())
     }
@@ -382,4 +378,4 @@ private suspend fun resolveDomainToIP(configJson: String): String {
             null
         }
     }
-}
+}  
