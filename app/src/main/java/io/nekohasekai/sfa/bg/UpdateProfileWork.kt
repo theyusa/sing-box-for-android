@@ -77,9 +77,17 @@ class UpdateProfileWork {
                 try {
                     val content = HTTPClient().use { it.getString(profile.typed.remoteURL) }
                     Libbox.checkConfig(content)
+                    
+                    // Force Resolve aktifse domain'leri IP'ye çevir
+                    val finalContent = if (profile.typed.forceResolve) {
+                        resolveDomainToIP(content)
+                    } else {
+                        content
+                    }
+                    
                     val file = File(profile.typed.path)
-                    if (file.readText() != content) {
-                        File(profile.typed.path).writeText(content)
+                    if (file.readText() != finalContent) {
+                        File(profile.typed.path).writeText(finalContent)
                         if (profile.id == selectedProfile) {
                             selectedProfileUpdated = true
                         }
@@ -103,4 +111,53 @@ class UpdateProfileWork {
             }
         }
     }
+    private suspend fun resolveDomainToIP(configJson: String): String {
+            return withContext(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    val jsonObject = org.json.JSONObject(configJson)
+                    val outbounds = jsonObject.optJSONArray("outbounds") ?: return@withContext configJson
+                    
+                    for (i in 0 until outbounds.length()) {
+                        val outbound = outbounds.getJSONObject(i)
+                        val server = outbound.optString("server", "")
+                        val type = outbound.optString("type", "")
+                        
+                        if (type == "selector" || type == "urltest" || type == "direct" || type == "block") {
+                            continue
+                        }
+                        
+                        if (server.isNotEmpty() && !isIPAddress(server)) {
+                            val resolvedIP = resolveDomain(server)
+                            if (resolvedIP != null) {
+                                outbound.put("server", resolvedIP)
+                                Log.d(TAG, "Auto-update: Resolved $server -> $resolvedIP")
+                            }
+                        }
+                    }
+                    
+                    jsonObject.toString()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error resolving domains during update", e)
+                    configJson
+                }
+            }
+        }
+
+        private fun isIPAddress(address: String): Boolean {
+            val ipv4Pattern = "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+            val ipv6Pattern = "^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$"
+            return address.matches(ipv4Pattern.toRegex()) || address.matches(ipv6Pattern.toRegex())
+        }
+
+        private fun resolveDomain(domain: String): String? {
+            return try {
+                val addresses = java.net.InetAddress.getAllByName(domain)
+                addresses.firstOrNull()?.hostAddress
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to resolve $domain", e)
+                null
+            }
+        }
+    }
+}
 }
