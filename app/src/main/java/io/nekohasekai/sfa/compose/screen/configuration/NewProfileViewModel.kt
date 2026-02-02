@@ -331,7 +331,7 @@ class NewProfileViewModel(application: Application) : AndroidViewModel(applicati
         return profile
     }
 
-    private suspend fun resolveDomainToIP(configJson: String): String {  
+    private suspend fun resolveDomainToIP(configJson: String): String {
         return withContext(Dispatchers.IO) {
             try {
                 val jsonObject = org.json.JSONObject(configJson)
@@ -378,4 +378,4 @@ class NewProfileViewModel(application: Application) : AndroidViewModel(applicati
             null
         }
     }
-}  
+}
