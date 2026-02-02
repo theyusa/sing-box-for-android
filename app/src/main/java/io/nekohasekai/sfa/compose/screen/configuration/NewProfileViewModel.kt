@@ -30,6 +30,8 @@ data class NewProfileUiState(
     val remoteUrl: String = "",
     val autoUpdate: Boolean = true,
     val autoUpdateInterval: Int = 60,
+    // Force Resolve 
+    val forceResolve: Boolean = false,
     // File import
     val importUri: Uri? = null,
     val importFileName: String? = null,
@@ -122,6 +124,11 @@ class NewProfileViewModel(application: Application) : AndroidViewModel(applicati
     fun updateAutoUpdateInterval(interval: String) {
         val intValue = interval.toIntOrNull() ?: 60
         _uiState.update { it.copy(autoUpdateInterval = intValue.coerceAtLeast(15)) }
+    }
+
+    // Force Resolve 
+    fun updateForceResolve(enabled: Boolean) {
+        _uiState.update { it.copy(forceResolve = enabled) }
     }
 
     fun setImportUri(uri: Uri, fileName: String?) {
