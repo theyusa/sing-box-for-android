@@ -39,6 +39,7 @@ class TypedProfile() : Parcelable {
     var lastUpdated: Date = Date(0)
     var autoUpdate: Boolean = false
     var autoUpdateInterval = 60
+    var forceResolve: Boolean = false
 
     constructor(reader: Parcel) : this() {
         val version = reader.readInt()
