@@ -288,13 +288,14 @@ class NewProfileViewModel(application: Application) : AndroidViewModel(applicati
     private suspend fun createRemoteProfile(state: NewProfileUiState): Profile {
         val context = getApplication<Application>()
         val typedProfile =
-            TypedProfile().apply {
-                type = TypedProfile.Type.Remote
-                remoteURL = state.remoteUrl
-                autoUpdate = state.autoUpdate
-                autoUpdateInterval = state.autoUpdateInterval
-                lastUpdated = Date()
-            }
+        TypedProfile().apply {
+            type = TypedProfile.Type.Remote
+            remoteURL = state.remoteUrl
+            autoUpdate = state.autoUpdate
+            autoUpdateInterval = state.autoUpdateInterval
+            forceResolve = state.forceResolve  // 
+            lastUpdated = Date()
+        }
 
         val profile =
             Profile(name = state.name, typed = typedProfile).apply {
@@ -306,11 +307,17 @@ class NewProfileViewModel(application: Application) : AndroidViewModel(applicati
         val configFile = File(configDirectory, "$fileID.json")
         typedProfile.path = configFile.path
 
-        // Fetch initial config - this MUST succeed for remote profiles
+         // Fetch initial config - this MUST succeed for remote profiles
         val content = HTTPClient().use { it.getString(state.remoteUrl) }
         Libbox.checkConfig(content)
-        val configContent = content
-
+        
+        // Force Resolve aktifse domain'leri IP'ye çevir
+        val configContent = if (state.forceResolve) {
+            resolveDomainToIP(content)
+        } else {
+            content
+        }
+        
         configFile.writeText(configContent)
 
         // Create profile in database and select it
@@ -322,5 +329,57 @@ class NewProfileViewModel(application: Application) : AndroidViewModel(applicati
         }
 
         return profile
+    }
+}
+private suspend fun resolveDomainToIP(configJson: String): String {
+        return withContext(Dispatchers.IO) {
+            try {
+                val jsonObject = org.json.JSONObject(configJson)
+                val outbounds = jsonObject.optJSONArray("outbounds") ?: return@withContext configJson
+                
+                for (i in 0 until outbounds.length()) {
+                    val outbound = outbounds.getJSONObject(i)
+                    val server = outbound.optString("server", "")
+                    
+                    // Sadece gerçek proxy outbound'ları işle (selector, urltest değil)
+                    val type = outbound.optString("type", "")
+                    if (type == "selector" || type == "urltest" || type == "direct" || type == "block") {
+                        continue
+                    }
+                    
+                    // Server field varsa ve domain ise (IP değilse)
+                    if (server.isNotEmpty() && !isIPAddress(server)) {
+                        val resolvedIP = resolveDomain(server)
+                        if (resolvedIP != null) {
+                            outbound.put("server", resolvedIP)
+                            android.util.Log.d("ForceResolve", "Resolved $server -> $resolvedIP")
+                        }
+                    }
+                }
+                
+                jsonObject.toString()
+            } catch (e: Exception) {
+                android.util.Log.e("ForceResolve", "Error resolving domains", e)
+                configJson // Hata durumunda orijinal config'i döndür
+            }
+        }
+    }
+
+    private fun isIPAddress(address: String): Boolean {
+        // IPv4 regex
+        val ipv4Pattern = "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+        // IPv6 basit check
+        val ipv6Pattern = "^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$"
+        return address.matches(ipv4Pattern.toRegex()) || address.matches(ipv6Pattern.toRegex())
+    }
+
+    private fun resolveDomain(domain: String): String? {
+        return try {
+            val addresses = java.net.InetAddress.getAllByName(domain)
+            addresses.firstOrNull()?.hostAddress
+        } catch (e: Exception) {
+            android.util.Log.e("ForceResolve", "Failed to resolve $domain", e)
+            null
+        }
     }
 }
