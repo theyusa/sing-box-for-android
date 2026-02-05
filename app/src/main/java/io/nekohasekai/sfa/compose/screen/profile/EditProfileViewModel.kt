@@ -58,7 +58,7 @@ data class EditProfileUiState(
 class EditProfileViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(EditProfileUiState())
     val uiState: StateFlow<EditProfileUiState> = _uiState.asStateFlow()
-    
+
     companion object {
         private const val TAG = "EditProfileViewModel"
     }
@@ -191,7 +191,7 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
             )
         }
     }
-    
+
     fun updateForceResolve(enabled: Boolean) {
         _uiState.update { state ->
             state.copy(
@@ -278,7 +278,7 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                 // Fetch remote config
                 val content = HTTPClient().use { it.getString(profile.typed.remoteURL) }
                 Libbox.checkConfig(content)
-                
+
                 // Force Resolve aktifse domain'leri IP'ye çevir
                 val finalContent = if (profile.typed.forceResolve) {
                     resolveDomainToIP(content)
@@ -326,7 +326,7 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
             }
         }
     }
-    
+
     private suspend fun resolveDomainToIP(configJson: String): String {
         return withContext(Dispatchers.IO) {
             try {
@@ -334,8 +334,14 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                 val outbounds = jsonObject.optJSONArray("outbounds") ?: return@withContext configJson
 
                 val skipTypes = setOf(
-                    "selector", "urltest", "direct", "block",
-                    "dns", "reject", "blackhole", "loopback"
+                    "selector",
+                    "urltest",
+                    "direct",
+                    "block",
+                    "dns",
+                    "reject",
+                    "blackhole",
+                    "loopback",
                 )
 
                 var resolvedCount = 0
@@ -382,20 +388,18 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
         return address.matches(ipv4Pattern.toRegex()) || address.matches(ipv6Pattern.toRegex())
     }
 
-    private fun resolveDomain(domain: String): String? {
-        return try {
-            val addresses = java.net.InetAddress.getAllByName(domain)
-            val ip = addresses.firstOrNull()?.hostAddress
-            if (ip != null) {
-                Log.i(TAG, "✅ $domain -> $ip")
-            } else {
-                Log.w(TAG, "⚠️ No IP found for $domain")
-            }
-            ip
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ DNS lookup failed: $domain (${e.message})")
-            null
+    private fun resolveDomain(domain: String): String? = try {
+        val addresses = java.net.InetAddress.getAllByName(domain)
+        val ip = addresses.firstOrNull()?.hostAddress
+        if (ip != null) {
+            Log.i(TAG, "✅ $domain -> $ip")
+        } else {
+            Log.w(TAG, "⚠️ No IP found for $domain")
         }
+        ip
+    } catch (e: Exception) {
+        Log.e(TAG, "❌ DNS lookup failed: $domain (${e.message})")
+        null
     }
 
     fun clearError() {

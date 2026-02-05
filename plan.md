@@ -1,61 +1,91 @@
-# 🤖 YAPAY ZEKA İÇİN KAPSAMLI FORCE RESOLVE FIX PROMPTU
-
+# 🎯 
 ```markdown
-# PROJE: Sing-box Android Force Resolve Düzeltme Görevi
+# ROLE & MINDSET
 
-## 🎯 GÖREV TANIMI
-Sing-box Android uygulamasında Force Resolve özelliğinin hatalarını tespit et ve düzelt.
+You are an expert Android/Kotlin developer with deep knowledge in:
+- **Android Architecture:** MVVM, Repository Pattern, Dependency Injection (Hilt/Dagger)
+- **Kotlin:** Coroutines, Flow, Sealed Classes, Data Classes, Extension Functions
+- **Jetpack Compose:** State Management, Recomposition, Navigation
+- **Gradle:** Build Configuration, Multi-module Projects, Flavors
+- **V2Ray/Proxy Protocols:** VLESS, VMess, Shadowsocks, Trojan, sing-box config format
+- **JSON Processing:** org.json.JSONObject, kotlinx.serialization
+- **Go/JNI:** Understanding native library integration (Libbox)
 
-## 📂 PROJE YAPISI
-```
-sing-box-for-android/
-├── app/src/main/java/io/nekohasekai/sfa/
-│   ├── compose/
-│   │   ├── screen/
-│   │   │   ├── configuration/
-│   │   │   │   ├── NewProfileScreen.kt (UI - Force Resolve toggle var)
-│   │   │   │   └── NewProfileViewModel.kt (Logic - Domain→IP resolve)
-│   │   │   └── profile/
-│   │   │       └── EditProfileRoute.kt (Düzenlenecek - Force Resolve toggle eklenecek)
-│   │   └── navigation/
-│   │       ├── SFANavigation.kt (Navigation setup)
-│   │       └── ProfileRoutes.kt (Route definitions)
-│   ├── bg/
-│   │   └── UpdateProfileWork.kt (Background - Auto-update resolve logic)
-│   ├── database/
-│   │   ├── Profile.kt (Model)
-│   │   ├── TypedProfile.kt (Model - forceResolve field var)
-│   │   ├── ProfileManager.kt (CRUD operations)
-│   │   └── Settings.kt (App settings)
-│   └── utils/
-│       └── HTTPClient.kt (Network requests)
-└── app/build.gradle.kts (Dependencies)
-```
+# PROJECT CONTEXT
 
-## 🐛 TESPİT EDİLEN HATALAR
+Project: sing-box-for-android (fork with Force Resolve feature)
+Build System: Gradle 9.1.0, Kotlin 2.1.0
+Architecture: Multi-module, Hilt DI, Jetpack Compose
+Main Feature: Force Resolve - converts domain names to IP addresses in proxy configs
 
-### 1. JSON Formatting Hatası
-**Sorun:** Force Resolve sonrası JSON minified (tek satır, okunamaz)
-**Sebep:** `JSONObject.toString()` kullanılıyor
-**Çözüm:** `JSONObject.toString(4)` kullan (4-space indentation)
+# TASK OVERVIEW
 
-**Etkilenen Dosyalar:**
-- `NewProfileViewModel.kt` (satır ~360)
-- `UpdateProfileWork.kt` (satır ~140)
+Fix Force Resolve feature bugs and complete implementation.
 
-### 2. Skip Types Eksik
-**Sorun:** Bazı outbound type'ları resolve edilmeye çalışılıyor (dns, reject, loopback)
-**Sebep:** Skip list eksik
-**Çözüm:** Skip types listesini genişlet
+## COMPLETED WORK
+- ✅ JSON formatting fix (toString(4) for pretty-print)
+- ✅ Data Layer modules (core/data)
+- ✅ Native JNI mock (core/libbox)
+- ✅ Shared UI components (shared/ui)
+- ✅ Subscription module (feature/subscription)
+- ✅ Config Editor module (feature/config)
+- ✅ Settings module (feature/settings)
 
-**Mevcut:**
+## REMAINING TASKS
+
+### HIGH PRIORITY
+1. Skip Types Expansion
+2. DNS Resolve Error Handling
+3. Edit Profile Screen - Force Resolve toggle
+4. Comprehensive Debugging
+
+### MEDIUM PRIORITY
+5. V2Ray Server Connection Test (NekoBox-style URL test)
+
+# RULES
+
+## Code Quality
+- Follow Kotlin style guide (4-space indent, camelCase)
+- Use meaningful variable/function names
+- Add KDoc comments for public APIs
+- Prefer immutability (val over var)
+- Use scope functions appropriately (let, apply, also, run)
+
+## Safety
+- Always use null-safe operators (?., !!, ?:)
+- Wrap network/IO in try-catch blocks
+- Use Dispatchers.IO for blocking operations
+- Handle edge cases (empty lists, null values)
+
+## Git Commits
+After EACH TODO item completion, write a SHORT commit message:
+- Format: `[Module] Brief description`
+- Example: `[ForceResolve] Add skip types for dns/reject/loopback`
+- Max 50 characters
+- Present tense
+
+## Logging
+- Use android.util.Log consistently
+- Log levels: d=debug, i=info, w=warning, e=error
+- Include context: Log.d("ForceResolve", "✅ $domain -> $ip")
+- Use emojis for visual distinction: ✅ success, ⚠️ warning, ❌ error
+
+# TODO LIST
+
+## PHASE 1: Force Resolve Bug Fixes
+
+### 1.1 Skip Types Expansion
+**File:** `NewProfileViewModel.kt` (~line 345)
+**File:** `UpdateProfileWork.kt` (~line 128)
+
+**Current:**
 ```kotlin
 if (type == "selector" || type == "urltest" || type == "direct" || type == "block") {
     continue
 }
 ```
 
-**Olması Gereken:**
+**Fix:**
 ```kotlin
 val skipTypes = setOf(
     "selector", "urltest", "direct", "block",
@@ -66,195 +96,260 @@ if (type in skipTypes) {
 }
 ```
 
-### 3. DNS Resolve Error Handling Zayıf
-**Sorun:** DNS başarısız olduğunda yeterli log yok
-**Çözüm:** Detaylı logging ekle (✅ Success, ⚠️ Warning, ❌ Error)
-
-### 4. Edit Screen'de Force Resolve Yok
-**Sorun:** Profile edit ekranında Force Resolve toggle görünmüyor
-**Çözüm:** EditProfileRoute.kt'ye Force Resolve UI ekle
-
-### 5. QUIC Reject Rule (Opsiyonel)
-**Sorun:** Bazı subscription'larda QUIC reject rule var (YouTube Music engelliyor)
-**Çözüm:** Force Resolve sırasında QUIC reject rule'unu otomatik kaldır
-
-## ✅ TODO LİSTESİ
-
-### PHASE 1: MEVCUT HATALARI DÜZELT (Yüksek Öncelik)
-- [ ] 1.1 NewProfileViewModel.kt'yi incele
-  - [ ] resolveDomainToIP fonksiyonunu bul (~satır 334)
-  - [ ] Skip types kontrolünü genişlet
-  - [ ] JSON.toString() → JSON.toString(4) değiştir
-  - [ ] resolveDomain logging'i iyileştir
-- [ ] 1.2 UpdateProfileWork.kt'yi incele
-  - [ ] resolveDomainToIP fonksiyonunu bul (~satır 117)
-  - [ ] Aynı 3 düzeltmeyi uygula
-- [ ] 1.3 Build ve test
-  - [ ] ./gradlew assembleOtherRelease
-  - [ ] Hata varsa düzelt
-
-### PHASE 2: EDIT SCREEN EKLENMESİ (Orta Öncelik)
-- [ ] 2.1 EditProfileRoute.kt'yi incele
-  - [ ] Mevcut UI yapısını anla
-  - [ ] Force Resolve toggle ekle (NewProfileScreen.kt'ye benzer)
-  - [ ] ViewModel'e updateForceResolve bağla
-- [ ] 2.2 EditProfileViewModel.kt oluştur/güncelle
-  - [ ] Profile load logic
-  - [ ] Force Resolve update logic
-  - [ ] Save changes logic
-- [ ] 2.3 TypedProfile güncellemesi
-  - [ ] forceResolve field zaten var mı kontrol et
-  - [ ] Yoksa ekle
-
-### PHASE 3: İLERİ SEVİYE (Düşük Öncelik)
-- [ ] 3.1 QUIC Reject Rule Kaldırma
-  - [ ] resolveDomainToIP içinde route.rules kontrol et
-  - [ ] protocol=quic && action=reject olanları sil
-- [ ] 3.2 IP Validation
-  - [ ] Resolve edilen IP'nin çalışıp çalışmadığını test et
-  - [ ] Çalışmazsa tekrar resolve et
-
-## 🧠 MINDSET & RULES
-
-### Android/Kotlin Mindset
-1. **Coroutines:** Suspend fonksiyonlar `withContext(Dispatchers.IO)` kullan
-2. **StateFlow:** UI state yönetimi için MutableStateFlow/StateFlow
-3. **ViewModels:** Business logic ViewModel'de, UI Screen'de
-4. **Compose:** Declarative UI, recomposition aware
-5. **Room Database:** TypeConverters ile custom types
-
-### Gradle/Build
-1. **Build variants:** play/other/otherLegacy flavors var
-2. **Dependencies:** kotlinx.serialization ve org.json ikisi de var
-3. **Libbox:** Go library, native methods için wrapper
-
-### Code Style
-1. **Kotlin conventions:** camelCase, 4-space indent
-2. **Null safety:** ? ve !! dikkatli kullan
-3. **Scope functions:** apply, let, also, run uygun yerde
-4. **Collections:** listOf, setOf, mapOf prefer et
-
-### Error Handling
-1. **Try-catch:** Network/IO işlemlerinde mutlaka
-2. **Logging:** android.util.Log veya Log (android.util import edilmişse)
-3. **User feedback:** Error state'leri UI'a yansıt
-
-## 🔍 ARAMA YÖNTEMLER
-
-### Dosya Bulma
-```bash
-# Force Resolve ile ilgili dosyaları bul
-find . -name "*.kt" -exec grep -l "forceResolve" {} \;
-
-# ViewModel dosyalarını bul
-find . -path "*/compose/screen/*/ViewModel.kt"
-
-# Navigation dosyalarını bul
-find . -name "*Navigation*.kt" -o -name "*Routes*.kt"
-```
-
-### Kod Arama
-```bash
-# resolveDomainToIP fonksiyonunu bul
-grep -rn "resolveDomainToIP" app/src/main/java/
-
-# EditProfile ile ilgili dosyaları bul
-grep -rn "EditProfile" app/src/main/java/io/nekohasekai/sfa/compose/
-
-# TypedProfile forceResolve field'ını kontrol
-grep -A5 "var forceResolve" app/src/main/java/io/nekohasekai/sfa/database/TypedProfile.kt
-```
-
-## 📝 ÇIKTI FORMATI
-
-### Her Düzeltme İçin:
-```markdown
-## DOSYA: NewProfileViewModel.kt
-
-### HATA: JSON minified output
-**Satır:** 358
-**Mevcut Kod:**
-```kotlin
-jsonObject.toString()
-```
-
-**Düzeltilmiş Kod:**
-```kotlin
-jsonObject.toString(4) // 4-space indentation
-```
-
-**Açıklama:** Pretty-print için 4 space indentation ekledik.
+**Commit:** `[ForceResolve] Expand skip types for better config support`
 
 ---
 
-### TEST:
-- [ ] Build başarılı
-- [ ] JSON çıktısı okunabilir
-- [ ] DNS resolve çalışıyor
+### 1.2 DNS Resolve Logging
+**File:** `NewProfileViewModel.kt` (~line 372-380)
+**File:** `UpdateProfileWork.kt` (~line 155-163)
+
+**Current:**
+```kotlin
+private fun resolveDomain(domain: String): String? {
+    return try {
+        val addresses = java.net.InetAddress.getAllByName(domain)
+        addresses.firstOrNull()?.hostAddress
+    } catch (e: Exception) {
+        android.util.Log.e("ForceResolve", "Failed to resolve $domain", e)
+        null
+    }
+}
 ```
 
-## 🚀 BAŞLANGIÇ ADIMLARI
-
-1. Projeyi incele:
-   ```bash
-   cd sing-box-for-android/app/src/main/java/io/nekohasekai/sfa
-   ls -la compose/screen/configuration/
-   ```
-
-2. Force Resolve ile ilgili dosyaları bul:
-   ```bash
-   grep -rn "forceResolve" .
-   ```
-
-3. Her dosyayı sırayla düzelt:
-   - NewProfileViewModel.kt
-   - UpdateProfileWork.kt
-   - EditProfileRoute.kt (varsa)
-
-4. Build al:
-   ```bash
-   cd ../../../../../../
-   ./gradlew assembleOtherRelease
-   ```
-
-5. Hataları raporla ve düzelt
-
-## 🎯 BAŞARI KRİTERLERİ
-
-- ✅ JSON output pretty-printed
-- ✅ Tüm outbound type'ları doğru handle edildi
-- ✅ DNS errors düzgün loglanıyor
-- ✅ Edit screen'de Force Resolve toggle var
-- ✅ Build başarılı (0 error)
-- ✅ Force Resolve açıkken IP adresleri yazılıyor
-- ✅ Subscription update sonrası IP'ler korunuyor
-
-## ⚠️ DİKKAT EDİLECEKLER
-
-1. **Parcel serialization:** TypedProfile'da forceResolve eklenirse version bump et
-2. **Database migration:** Room migration gerekebilir (opsiyonel)
-3. **Null safety:** Kotlin null checks unutma
-4. **Imports:** org.json.JSONObject doğru import edilmeli
-5. **Dispatchers.IO:** Ağ işlemleri IO dispatcher'da olmalı
+**Fix:**
+```kotlin
+private fun resolveDomain(domain: String): String? {
+    return try {
+        val addresses = java.net.InetAddress.getAllByName(domain)
+        val ip = addresses.firstOrNull()?.hostAddress
+        if (ip != null) {
+            android.util.Log.i(TAG, "✅ $domain -> $ip")
+        } else {
+            android.util.Log.w(TAG, "⚠️ No IP found for $domain")
+        }
+        ip
+    } catch (e: Exception) {
+        android.util.Log.e(TAG, "❌ DNS lookup failed: $domain (${e.message})")
+        null
+    }
+}
 ```
+
+**Commit:** `[ForceResolve] Improve DNS resolve logging with emojis`
 
 ---
 
-# 🎯 YAPAY ZEKAYA VERİLECEK KOMUT
+## PHASE 2: Edit Profile Screen
 
-Bu promptu ChatGPT/Claude/Gemini'ye verin:
+### 2.1 Add Force Resolve Toggle to Edit Screen
+**File:** `feature/profile/EditProfileScreen.kt` (or similar)
+
+**Requirements:**
+- Add Force Resolve Switch (like in NewProfileScreen.kt)
+- Position: After Auto Update settings
+- State binding: viewModel.forceResolve
+- OnChange: viewModel.updateForceResolve(enabled)
+
+**Reference:**
+```kotlin
+// From NewProfileScreen.kt
+Row(
+    modifier = Modifier.fillMaxWidth(),
+    verticalAlignment = Alignment.CenterVertically,
+    horizontalArrangement = Arrangement.SpaceBetween,
+) {
+    Text(
+        text = stringResource(R.string.profile_force_resolve),
+        style = MaterialTheme.typography.bodyLarge,
+    )
+    Switch(
+        checked = uiState.forceResolve,
+        onCheckedChange = viewModel::updateForceResolve,
+    )
+}
+```
+
+**Commit:** `[EditProfile] Add Force Resolve toggle UI`
+
+---
+
+### 2.2 Edit Profile ViewModel Logic
+**File:** `EditProfileViewModel.kt`
+
+**Add:**
+1. forceResolve field to UiState
+2. updateForceResolve(Boolean) function
+3. Apply Force Resolve in updateRemoteProfile() when user presses "Update Now"
+
+**Example:**
+```kotlin
+data class EditProfileUiState(
+    val forceResolve: Boolean = false,
+    // ... other fields
+)
+
+fun updateForceResolve(enabled: Boolean) {
+    _uiState.update { it.copy(forceResolve = enabled) }
+}
+
+suspend fun updateRemoteProfile() {
+    val content = HTTPClient().use { it.getString(profile.typed.remoteURL) }
+    val finalContent = if (_uiState.value.forceResolve) {
+        resolveDomainToIP(content)
+    } else {
+        content
+    }
+    // Save finalContent...
+}
+```
+
+**Commit:** `[EditProfile] Add Force Resolve logic to ViewModel`
+
+---
+
+## PHASE 3: Comprehensive Debugging
+
+### 3.1 Build & Compile Check
+```bash
+./gradlew clean
+./gradlew compileDebugKotlin 2>&1 | tee compile.log
+```
+
+**Check for:**
+- Unresolved reference
+- Type mismatch
+- Missing imports
+- Hilt binding errors
+
+**Commit:** `[Build] Fix compilation errors in [module]`
+
+---
+
+### 3.2 Module-by-Module Validation
+
+**For each module (core/data, feature/subscription, etc):**
+1. Check imports
+2. Verify Hilt annotations (@Module, @Provides, @HiltViewModel)
+3. Validate Room entities/DAOs
+4. Test Compose previews
+
+**Commit format:** `[ModuleName] Fix [specific issue]`
+
+---
+
+### 3.3 Final Integration Test
+```bash
+./gradlew assembleDebug
+```
+
+**Success criteria:** BUILD SUCCESSFUL, 0 errors
+
+**Commit:** `[Release] Final integration fixes complete`
+
+---
+
+## PHASE 4: V2Ray Connection Test (Future)
+
+### 4.1 Research NekoBox Implementation
+- [ ] Analyze speedtest.go
+- [ ] Find Libbox API for outbound testing
+- [ ] Design Kotlin wrapper
+
+**Commit:** `[Research] NekoBox URL test analysis complete`
+
+---
+
+### 4.2 Implement ServerTester
+**File:** `core/network/ServerTester.kt` (new)
+
+```kotlin
+suspend fun testServer(outbound: Outbound): TestResult {
+    return withContext(Dispatchers.IO) {
+        try {
+            // 1. Create temp proxy connection
+            // 2. HTTP GET to https://www.gstatic.com/generate_204
+            // 3. Check 204 response
+            TestResult.Success
+        } catch (e: Exception) {
+            TestResult.Failed(e.message)
+        }
+    }
+}
+```
+
+**Commit:** `[ServerTest] Implement basic server connectivity test`
+
+---
+
+# EXECUTION PLAN
+
+## STEP 1: Scan Project Structure
+```bash
+cd /path/to/sing-box-for-android
+find . -name "NewProfileViewModel.kt"
+find . -name "UpdateProfileWork.kt"
+find . -name "EditProfile*.kt"
+```
+
+## STEP 2: Apply Fixes (Phase 1)
+- Open NewProfileViewModel.kt
+- Apply skip types fix
+- Apply DNS logging fix
+- Save
+- Repeat for UpdateProfileWork.kt
+- **Commit after each file**
+
+## STEP 3: Edit Profile (Phase 2)
+- Locate EditProfileScreen.kt and EditProfileViewModel.kt
+- Add Force Resolve UI
+- Add Force Resolve logic
+- **Commit after each component**
+
+## STEP 4: Debug (Phase 3)
+- Run compile
+- Fix errors one by one
+- **Commit after each fix**
+
+## STEP 5: Verify
+```bash
+./gradlew assembleDebug
+# Expected: BUILD SUCCESSFUL
+```
+
+# OUTPUT FORMAT
+
+For each TODO:
 
 ```
-Yukarıdaki Force Resolve düzeltme görevini yap. 
+✅ TODO: [Description]
+FILE: path/to/File.kt
+LINES: 123-145
 
-Proje dizini: /path/to/sing-box-for-android
+CHANGES:
+- Added skip types set
+- Improved logging
 
-Adım adım:
-1. Dosyaları incele ve hataları tespit et
-2. Her hatayı raporla (dosya adı, satır numarası, mevcut kod, düzeltilmiş kod)
-3. Düzeltilmiş kodları üret
-4. Build komutunu çalıştır ve sonucu raporla
-5. Varsa hataları tekrar düzelt
+COMMIT: [ForceResolve] Add skip types for dns/reject/loopback
 
-Başla!
+STATUS: ✅ Complete / ⏳ In Progress / ❌ Blocked
 ```
+
+# SUCCESS CRITERIA
+
+- [ ] All Phase 1 fixes applied
+- [ ] Edit Profile has Force Resolve toggle
+- [ ] Build succeeds with 0 errors
+- [ ] Force Resolve works end-to-end (create + edit + update)
+- [ ] Clean commit history with descriptive messages
+
+# BEGIN EXECUTION
+
+Start with PHASE 1, TODO 1.1 - Skip Types Expansion.
+Work systematically through each TODO.
+Commit after EVERY completed task.
+Report progress after each commit.
+
+GO!
+```
+

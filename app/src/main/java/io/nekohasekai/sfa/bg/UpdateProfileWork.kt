@@ -79,14 +79,14 @@ class UpdateProfileWork {
                 try {
                     val content = HTTPClient().use { it.getString(profile.typed.remoteURL) }
                     Libbox.checkConfig(content)
-                    
+
                     // Force Resolve aktifse domain'leri IP'ye çevir
                     val finalContent = if (profile.typed.forceResolve) {
                         resolveDomainToIP(content)
                     } else {
                         content
                     }
-                    
+
                     val file = File(profile.typed.path)
                     if (file.readText() != finalContent) {
                         File(profile.typed.path).writeText(finalContent)
@@ -105,7 +105,6 @@ class UpdateProfileWork {
                 runCatching {
                     Libbox.newStandaloneCommandClient().serviceReload()
                 }
-            
             }
             return if (success) {
                 Result.success()
@@ -114,32 +113,38 @@ class UpdateProfileWork {
             }
         }
 
-        private suspend fun resolveDomainToIP(configJson: String): String {  
+        private suspend fun resolveDomainToIP(configJson: String): String {
             return withContext(kotlinx.coroutines.Dispatchers.IO) {
                 try {
                     val jsonObject = org.json.JSONObject(configJson)
                     val outbounds = jsonObject.optJSONArray("outbounds") ?: return@withContext configJson
-                    
+
                     val skipTypes = setOf(
-                        "selector", "urltest", "direct", "block",
-                        "dns", "reject", "blackhole", "loopback"
+                        "selector",
+                        "urltest",
+                        "direct",
+                        "block",
+                        "dns",
+                        "reject",
+                        "blackhole",
+                        "loopback",
                     )
-                    
+
                     var resolvedCount = 0
                     var skippedCount = 0
                     var errorCount = 0
-                    
+
                     for (i in 0 until outbounds.length()) {
                         val outbound = outbounds.getJSONObject(i)
                         val server = outbound.optString("server", "")
                         val type = outbound.optString("type", "")
-                        
+
                         if (type in skipTypes) {
                             Log.d(TAG, "⚡ Skipping '$type' outbound: ${outbound.optString("tag", "unnamed")}")
                             skippedCount++
                             continue
                         }
-                        
+
                         if (server.isNotEmpty() && !isIPAddress(server)) {
                             Log.i(TAG, "🔍 Resolving domain: $server (type: $type, tag: ${outbound.optString("tag", "unnamed")})")
                             val resolvedIP = resolveDomain(server)
@@ -153,7 +158,7 @@ class UpdateProfileWork {
                             }
                         }
                     }
-                    
+
                     Log.i(TAG, "📊 Summary: $resolvedCount resolved, $skippedCount skipped, $errorCount errors")
                     jsonObject.toString(4) // Pretty-print with 4-space indentation
                 } catch (e: Exception) {
@@ -169,20 +174,18 @@ class UpdateProfileWork {
             return address.matches(ipv4Pattern.toRegex()) || address.matches(ipv6Pattern.toRegex())
         }
 
-        private fun resolveDomain(domain: String): String? {
-            return try {
-                val addresses = java.net.InetAddress.getAllByName(domain)
-                val ip = addresses.firstOrNull()?.hostAddress
-                if (ip != null) {
-                    Log.i(TAG, "✅ $domain -> $ip")
-                } else {
-                    Log.w(TAG, "⚠️ No IP found for $domain")
-                }
-                ip
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ DNS lookup failed: $domain (${e.message})")
-                null
+        private fun resolveDomain(domain: String): String? = try {
+            val addresses = java.net.InetAddress.getAllByName(domain)
+            val ip = addresses.firstOrNull()?.hostAddress
+            if (ip != null) {
+                Log.i(TAG, "✅ $domain -> $ip")
+            } else {
+                Log.w(TAG, "⚠️ No IP found for $domain")
             }
+            ip
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ DNS lookup failed: $domain (${e.message})")
+            null
         }
-    }  
-}  
+    }
+}

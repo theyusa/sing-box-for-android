@@ -30,7 +30,7 @@ data class NewProfileUiState(
     val remoteUrl: String = "",
     val autoUpdate: Boolean = true,
     val autoUpdateInterval: Int = 60,
-    // Force Resolve 
+    // Force Resolve
     val forceResolve: Boolean = false,
     // File import
     val importUri: Uri? = null,
@@ -127,7 +127,7 @@ class NewProfileViewModel(application: Application) : AndroidViewModel(applicati
         _uiState.update { it.copy(autoUpdateInterval = intValue.coerceAtLeast(15)) }
     }
 
-    // Force Resolve 
+    // Force Resolve
     fun updateForceResolve(enabled: Boolean) {
         _uiState.update { it.copy(forceResolve = enabled) }
     }
@@ -289,14 +289,14 @@ class NewProfileViewModel(application: Application) : AndroidViewModel(applicati
     private suspend fun createRemoteProfile(state: NewProfileUiState): Profile {
         val context = getApplication<Application>()
         val typedProfile =
-        TypedProfile().apply {
-            type = TypedProfile.Type.Remote
-            remoteURL = state.remoteUrl
-            autoUpdate = state.autoUpdate
-            autoUpdateInterval = state.autoUpdateInterval
-            forceResolve = state.forceResolve  // 
-            lastUpdated = Date()
-        }
+            TypedProfile().apply {
+                type = TypedProfile.Type.Remote
+                remoteURL = state.remoteUrl
+                autoUpdate = state.autoUpdate
+                autoUpdateInterval = state.autoUpdateInterval
+                forceResolve = state.forceResolve //
+                lastUpdated = Date()
+            }
 
         val profile =
             Profile(name = state.name, typed = typedProfile).apply {
@@ -308,17 +308,17 @@ class NewProfileViewModel(application: Application) : AndroidViewModel(applicati
         val configFile = File(configDirectory, "$fileID.json")
         typedProfile.path = configFile.path
 
-         // Fetch initial config - this MUST succeed for remote profiles
+        // Fetch initial config - this MUST succeed for remote profiles
         val content = HTTPClient().use { it.getString(state.remoteUrl) }
         Libbox.checkConfig(content)
-        
+
         // Force Resolve aktifse domain'leri IP'ye çevir
         val configContent = if (state.forceResolve) {
             resolveDomainToIP(content)
         } else {
             content
         }
-        
+
         configFile.writeText(configContent)
 
         // Create profile in database and select it
@@ -339,8 +339,14 @@ class NewProfileViewModel(application: Application) : AndroidViewModel(applicati
                 val outbounds = jsonObject.optJSONArray("outbounds") ?: return@withContext configJson
 
                 val skipTypes = setOf(
-                    "selector", "urltest", "direct", "block",
-                    "dns", "reject", "blackhole", "loopback"
+                    "selector",
+                    "urltest",
+                    "direct",
+                    "block",
+                    "dns",
+                    "reject",
+                    "blackhole",
+                    "loopback",
                 )
 
                 var resolvedCount = 0
@@ -387,19 +393,17 @@ class NewProfileViewModel(application: Application) : AndroidViewModel(applicati
         return address.matches(ipv4Pattern.toRegex()) || address.matches(ipv6Pattern.toRegex())
     }
 
-    private fun resolveDomain(domain: String): String? {
-        return try {
-            val addresses = java.net.InetAddress.getAllByName(domain)
-            val ip = addresses.firstOrNull()?.hostAddress
-            if (ip != null) {
-                android.util.Log.i(TAG, "✅ $domain -> $ip")
-            } else {
-                android.util.Log.w(TAG, "⚠️ No IP found for $domain")
-            }
-            ip
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ DNS lookup failed: $domain (${e.message})")
-            null
+    private fun resolveDomain(domain: String): String? = try {
+        val addresses = java.net.InetAddress.getAllByName(domain)
+        val ip = addresses.firstOrNull()?.hostAddress
+        if (ip != null) {
+            android.util.Log.i(TAG, "✅ $domain -> $ip")
+        } else {
+            android.util.Log.w(TAG, "⚠️ No IP found for $domain")
         }
+        ip
+    } catch (e: Exception) {
+        android.util.Log.e(TAG, "❌ DNS lookup failed: $domain (${e.message})")
+        null
     }
 }

@@ -55,7 +55,8 @@ fun getVersionProps(propName: String): String {
 
 android {
     namespace = "io.nekohasekai.sfa"
-    compileSdk = 36
+    compileSdk = 35
+    buildToolsVersion = "35.0.0"
 
     ndkVersion = "28.0.13004108"
 

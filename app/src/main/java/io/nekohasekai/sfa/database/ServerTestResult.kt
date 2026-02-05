@@ -1,0 +1,95 @@
+package io.nekohasekai.sfa.database
+
+import androidx.room.ColumnInfo
+import androidx.room.Dao
+import androidx.room.Delete
+import androidx.room.Entity
+import androidx.room.Index
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.PrimaryKey
+import androidx.room.Query
+import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
+
+@Entity(
+    tableName = "server_test_results",
+    indices = [
+        Index(value = ["serverTag", "profileId"], unique = true),
+        Index(value = ["profileId", "isSuccess"]),
+        Index(value = ["testedAt"]),
+    ],
+)
+data class ServerTestResult(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+
+    @ColumnInfo
+    val serverTag: String,
+
+    @ColumnInfo
+    val profileId: Long,
+
+    @ColumnInfo(name = "is_success")
+    val isSuccess: Boolean,
+
+    @ColumnInfo(name = "latency_ms")
+    val latencyMs: Int? = null,
+
+    @ColumnInfo(name = "error_type")
+    val errorType: String? = null,
+
+    @ColumnInfo(name = "error_message")
+    val errorMessage: String? = null,
+
+    @ColumnInfo(name = "tested_at")
+    val testedAt: Long = System.currentTimeMillis(),
+) {
+    @Dao
+    interface Dao {
+        @Insert(onConflict = OnConflictStrategy.REPLACE)
+        fun insert(result: ServerTestResult): Long
+
+        @Insert(onConflict = OnConflictStrategy.REPLACE)
+        fun insertAll(results: List<ServerTestResult>)
+
+        @Update
+        fun update(result: ServerTestResult)
+
+        @Delete
+        fun delete(result: ServerTestResult)
+
+        @Delete
+        fun deleteAll(results: List<ServerTestResult>)
+
+        @Query("DELETE FROM server_test_results WHERE profileId = :profileId")
+        fun deleteByProfileId(profileId: Long)
+
+        @Query("DELETE FROM server_test_results")
+        fun clear()
+
+        @Query("SELECT * FROM server_test_results WHERE id = :id")
+        fun get(id: Long): ServerTestResult?
+
+        @Query("SELECT * FROM server_test_results WHERE profileId = :profileId ORDER BY testedAt DESC")
+        fun getByProfileId(profileId: Long): List<ServerTestResult>
+
+        @Query("SELECT * FROM server_test_results WHERE profileId = :profileId ORDER BY testedAt DESC")
+        fun getByProfileIdFlow(profileId: Long): Flow<List<ServerTestResult>>
+
+        @Query("SELECT * FROM server_test_results WHERE profileId = :profileId AND serverTag = :serverTag")
+        fun getByProfileAndServer(profileId: Long, serverTag: String): ServerTestResult?
+
+        @Query("SELECT * FROM server_test_results WHERE profileId = :profileId AND isSuccess = 1 ORDER BY latency_ms ASC LIMIT 1")
+        fun getBestServerByProfile(profileId: Long): ServerTestResult?
+
+        @Query("SELECT * FROM server_test_results WHERE isSuccess = 1 ORDER BY testedAt DESC LIMIT :limit")
+        fun getRecentSuccessfulResults(limit: Int = 50): List<ServerTestResult>
+
+        @Query("SELECT * FROM server_test_results WHERE testedAt < :timestamp")
+        fun getOlderThan(timestamp: Long): List<ServerTestResult>
+
+        @Query("DELETE FROM server_test_results WHERE testedAt < :timestamp")
+        fun deleteOlderThan(timestamp: Long)
+    }
+}

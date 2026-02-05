@@ -51,20 +51,20 @@ class TypedProfile() : Parcelable {
         if (version >= 1) {
             autoUpdateInterval = reader.readInt()
         }
-        if (version >= 2) {  
-        forceResolve = reader.readInt() == 1
+        if (version >= 2) {
+            forceResolve = reader.readInt() == 1
         }
     }
 
     override fun writeToParcel(writer: Parcel, flags: Int) {
-    writer.writeInt(2)  // 
-    writer.writeString(path)
-    writer.writeInt(type.ordinal)
-    writer.writeString(remoteURL)
-    writer.writeInt(if (autoUpdate) 1 else 0)
-    writer.writeLong(lastUpdated.time)
-    writer.writeInt(autoUpdateInterval)
-    writer.writeInt(if (forceResolve) 1 else 0)  // 
+        writer.writeInt(2) //
+        writer.writeString(path)
+        writer.writeInt(type.ordinal)
+        writer.writeString(remoteURL)
+        writer.writeInt(if (autoUpdate) 1 else 0)
+        writer.writeLong(lastUpdated.time)
+        writer.writeInt(autoUpdateInterval)
+        writer.writeInt(if (forceResolve) 1 else 0) //
     }
 
     override fun describeContents(): Int = 0
