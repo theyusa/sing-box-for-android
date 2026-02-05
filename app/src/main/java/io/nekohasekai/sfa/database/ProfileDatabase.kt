@@ -13,7 +13,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 abstract class ProfileDatabase : RoomDatabase() {
     abstract fun profileDao(): Profile.Dao
 
-    abstract fun serverTestResultDao(): ServerTestResult.Dao
+    abstract fun serverTestResultDao(): ServerTestResultDao
 
     companion object {
         val MIGRATION_1_2 =
@@ -50,7 +50,7 @@ abstract class ProfileDatabase : RoomDatabase() {
                     )
                     database.execSQL(
                         "CREATE INDEX IF NOT EXISTS `index_server_test_results_tested_at` " +
-                            "ON `server_test_results` (`testedAt`)",
+                        "ON `server_test_results` (`tested_at`)",
                     )
                 }
             }
