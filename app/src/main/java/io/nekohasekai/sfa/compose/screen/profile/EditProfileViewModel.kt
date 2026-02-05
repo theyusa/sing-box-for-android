@@ -3,6 +3,7 @@ package io.nekohasekai.sfa.compose.screen.profile
 import android.app.Application
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -34,6 +35,7 @@ data class EditProfileUiState(
     val remoteUrl: String = "",
     val autoUpdate: Boolean = false,
     val autoUpdateInterval: Int = 60,
+    val forceResolve: Boolean = false,
     val lastUpdated: Date? = null,
     // Original values for change detection
     val originalName: String = "",
@@ -41,6 +43,7 @@ data class EditProfileUiState(
     val originalRemoteUrl: String = "",
     val originalAutoUpdate: Boolean = false,
     val originalAutoUpdateInterval: Int = 60,
+    val originalForceResolve: Boolean = false,
     // State flags
     val hasChanges: Boolean = false,
     val isLoading: Boolean = true,
@@ -55,6 +58,10 @@ data class EditProfileUiState(
 class EditProfileViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(EditProfileUiState())
     val uiState: StateFlow<EditProfileUiState> = _uiState.asStateFlow()
+    
+    companion object {
+        private const val TAG = "EditProfileViewModel"
+    }
 
     // Store the content to export when user selects a file location
     var pendingExportContent: String? = null
@@ -89,6 +96,8 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                         originalAutoUpdate = typedProfile.autoUpdate,
                         autoUpdateInterval = typedProfile.autoUpdateInterval,
                         originalAutoUpdateInterval = typedProfile.autoUpdateInterval,
+                        forceResolve = typedProfile.forceResolve,
+                        originalForceResolve = typedProfile.forceResolve,
                         lastUpdated = typedProfile.lastUpdated,
                         isLoading = false,
                     )
@@ -182,12 +191,22 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
             )
         }
     }
+    
+    fun updateForceResolve(enabled: Boolean) {
+        _uiState.update { state ->
+            state.copy(
+                forceResolve = enabled,
+                hasChanges = checkHasChanges(state.copy(forceResolve = enabled)),
+            )
+        }
+    }
 
     private fun checkHasChanges(state: EditProfileUiState): Boolean = state.name != state.originalName ||
         state.icon != state.originalIcon ||
         state.remoteUrl != state.originalRemoteUrl ||
         state.autoUpdate != state.originalAutoUpdate ||
-        state.autoUpdateInterval != state.originalAutoUpdateInterval
+        state.autoUpdateInterval != state.originalAutoUpdateInterval ||
+        state.forceResolve != state.originalForceResolve
 
     fun saveChanges() {
         val state = _uiState.value
@@ -210,6 +229,7 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                 val autoUpdateChanged = state.autoUpdate != state.originalAutoUpdate
                 profile.typed.autoUpdate = state.autoUpdate
                 profile.typed.autoUpdateInterval = state.autoUpdateInterval
+                profile.typed.forceResolve = state.forceResolve
 
                 // Save to database
                 ProfileManager.update(profile)
@@ -227,6 +247,7 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                         originalRemoteUrl = state.remoteUrl,
                         originalAutoUpdate = state.autoUpdate,
                         originalAutoUpdateInterval = state.autoUpdateInterval,
+                        originalForceResolve = state.forceResolve,
                         hasChanges = false,
                         isSaving = false,
                     )
@@ -257,11 +278,18 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                 // Fetch remote config
                 val content = HTTPClient().use { it.getString(profile.typed.remoteURL) }
                 Libbox.checkConfig(content)
+                
+                // Force Resolve aktifse domain'leri IP'ye çevir
+                val finalContent = if (profile.typed.forceResolve) {
+                    resolveDomainToIP(content)
+                } else {
+                    content
+                }
 
                 // Check if content changed
                 val file = File(profile.typed.path)
-                if (!file.exists() || file.readText() != content) {
-                    file.writeText(content)
+                if (!file.exists() || file.readText() != finalContent) {
+                    file.writeText(finalContent)
                     if (profile.id == Settings.selectedProfile) {
                         selectedProfileUpdated = true
                     }
@@ -296,6 +324,71 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                     )
                 }
             }
+        }
+    }
+    
+    private suspend fun resolveDomainToIP(configJson: String): String {
+        return withContext(Dispatchers.IO) {
+            try {
+                val jsonObject = org.json.JSONObject(configJson)
+                val outbounds = jsonObject.optJSONArray("outbounds") ?: return@withContext configJson
+
+                val skipTypes = setOf(
+                    "selector", "urltest", "direct", "block",
+                    "dns", "reject", "blackhole", "loopback"
+                )
+
+                var resolvedCount = 0
+                var skippedCount = 0
+                var errorCount = 0
+
+                for (i in 0 until outbounds.length()) {
+                    val outbound = outbounds.getJSONObject(i)
+                    val server = outbound.optString("server", "")
+                    val type = outbound.optString("type", "")
+
+                    if (type in skipTypes) {
+                        Log.d(TAG, "⚡ Skipping '$type' outbound: ${outbound.optString("tag", "unnamed")}")
+                        skippedCount++
+                        continue
+                    }
+
+                    if (server.isNotEmpty() && !isIPAddress(server)) {
+                        Log.i(TAG, "🔍 Resolving domain: $server (type: $type)")
+                        val resolvedIP = resolveDomain(server)
+                        if (resolvedIP != null) {
+                            outbound.put("server", resolvedIP)
+                            resolvedCount++
+                            Log.i(TAG, "✅ Resolved $server -> $resolvedIP")
+                        } else {
+                            errorCount++
+                            Log.w(TAG, "⚠️ Failed to resolve: $server (keeping original)")
+                        }
+                    }
+                }
+
+                Log.i(TAG, "📊 Summary: $resolvedCount resolved, $skippedCount skipped, $errorCount errors")
+                jsonObject.toString(4)
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error resolving domains during manual update", e)
+                configJson
+            }
+        }
+    }
+
+    private fun isIPAddress(address: String): Boolean {
+        val ipv4Pattern = "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+        val ipv6Pattern = "^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$"
+        return address.matches(ipv4Pattern.toRegex()) || address.matches(ipv6Pattern.toRegex())
+    }
+
+    private fun resolveDomain(domain: String): String? {
+        return try {
+            val addresses = java.net.InetAddress.getAllByName(domain)
+            addresses.firstOrNull()?.hostAddress
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to resolve $domain", e)
+            null
         }
     }
 

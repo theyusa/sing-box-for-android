@@ -120,27 +120,44 @@ class UpdateProfileWork {
                     val jsonObject = org.json.JSONObject(configJson)
                     val outbounds = jsonObject.optJSONArray("outbounds") ?: return@withContext configJson
                     
+                    val skipTypes = setOf(
+                        "selector", "urltest", "direct", "block",
+                        "dns", "reject", "blackhole", "loopback"
+                    )
+                    
+                    var resolvedCount = 0
+                    var skippedCount = 0
+                    var errorCount = 0
+                    
                     for (i in 0 until outbounds.length()) {
                         val outbound = outbounds.getJSONObject(i)
                         val server = outbound.optString("server", "")
                         val type = outbound.optString("type", "")
                         
-                        if (type == "selector" || type == "urltest" || type == "direct" || type == "block") {
+                        if (type in skipTypes) {
+                            Log.d(TAG, "⚡ Skipping '$type' outbound: ${outbound.optString("tag", "unnamed")}")
+                            skippedCount++
                             continue
                         }
                         
                         if (server.isNotEmpty() && !isIPAddress(server)) {
+                            Log.i(TAG, "🔍 Resolving domain: $server (type: $type, tag: ${outbound.optString("tag", "unnamed")})")
                             val resolvedIP = resolveDomain(server)
                             if (resolvedIP != null) {
                                 outbound.put("server", resolvedIP)
-                                Log.d(TAG, "Auto-update: Resolved $server -> $resolvedIP")
+                                resolvedCount++
+                                Log.i(TAG, "✅ Resolved $server -> $resolvedIP (type: $type)")
+                            } else {
+                                errorCount++
+                                Log.w(TAG, "⚠️ Failed to resolve: $server (keeping original, type: $type)")
                             }
                         }
                     }
                     
-                    jsonObject.toString()
+                    Log.i(TAG, "📊 Summary: $resolvedCount resolved, $skippedCount skipped, $errorCount errors")
+                    jsonObject.toString(4) // Pretty-print with 4-space indentation
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error resolving domains during update", e)
+                    Log.e(TAG, "❌ Error resolving domains during update", e)
                     configJson
                 }
             }
