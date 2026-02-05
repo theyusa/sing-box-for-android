@@ -172,9 +172,15 @@ class UpdateProfileWork {
         private fun resolveDomain(domain: String): String? {
             return try {
                 val addresses = java.net.InetAddress.getAllByName(domain)
-                addresses.firstOrNull()?.hostAddress
+                val ip = addresses.firstOrNull()?.hostAddress
+                if (ip != null) {
+                    Log.i(TAG, "✅ $domain -> $ip")
+                } else {
+                    Log.w(TAG, "⚠️ No IP found for $domain")
+                }
+                ip
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to resolve $domain", e)
+                Log.e(TAG, "❌ DNS lookup failed: $domain (${e.message})")
                 null
             }
         }

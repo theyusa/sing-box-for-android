@@ -60,6 +60,7 @@ enum class ProfileSource {
 }
 
 class NewProfileViewModel(application: Application) : AndroidViewModel(application) {
+    private val TAG = "ForceResolve"
     private val _uiState = MutableStateFlow(NewProfileUiState())
     val uiState: StateFlow<NewProfileUiState> = _uiState.asStateFlow()
 
@@ -389,9 +390,15 @@ class NewProfileViewModel(application: Application) : AndroidViewModel(applicati
     private fun resolveDomain(domain: String): String? {
         return try {
             val addresses = java.net.InetAddress.getAllByName(domain)
-            addresses.firstOrNull()?.hostAddress
+            val ip = addresses.firstOrNull()?.hostAddress
+            if (ip != null) {
+                android.util.Log.i(TAG, "✅ $domain -> $ip")
+            } else {
+                android.util.Log.w(TAG, "⚠️ No IP found for $domain")
+            }
+            ip
         } catch (e: Exception) {
-            android.util.Log.e("ForceResolve", "Failed to resolve $domain", e)
+            android.util.Log.e(TAG, "❌ DNS lookup failed: $domain (${e.message})")
             null
         }
     }
