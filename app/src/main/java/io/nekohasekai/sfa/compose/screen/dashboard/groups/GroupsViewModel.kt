@@ -220,41 +220,49 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val client = Libbox.newStandaloneCommandClient()
+
                 client.urlTest(groupTag)
 
                 var retries = 0
-                val maxRetries = 10
-                val retryDelayMs = 500L
+                val maxRetries = 30
+                val retryDelayMs = 300L
 
                 var bestItemTag: String? = null
                 var bestLatency: Int? = null
+                var lastTestTime = 0L
 
                 while (retries < maxRetries) {
                     val group = uiState.value.groups.find { it.tag == groupTag }
                     if (group != null) {
+                        var foundResults = false
                         group.items.forEach { item ->
-                            if (item.urlTestTime > 0 && item.urlTestDelay > 0) {
-                                if (bestLatency == null || item.urlTestDelay < bestLatency) {
-                                    bestLatency = item.urlTestDelay
-                                    bestItemTag = item.tag
+                            if (item.urlTestTime > 0) {
+                                foundResults = true
+                                if (item.urlTestDelay > 0) {
+                                    if (bestLatency == null || item.urlTestDelay < bestLatency) {
+                                        bestLatency = item.urlTestDelay
+                                        bestItemTag = item.tag
+                                    }
                                 }
                             }
                         }
 
-                        if (bestItemTag != null && bestItemTag != group.selected) {
-                            client.selectOutbound(groupTag, bestItemTag)
-                            withContext(Dispatchers.Main) {
-                                updateState {
-                                    copy(
-                                        groups =
-                                        groups.map { g ->
-                                            if (g.tag == groupTag) {
-                                                g.copy(selected = bestItemTag!!)
-                                            } else {
-                                                g
-                                            }
-                                        },
-                                    )
+                        if (foundResults && bestItemTag != null) {
+                            if (bestItemTag != group.selected) {
+                                client.selectOutbound(groupTag, bestItemTag)
+                                withContext(Dispatchers.Main) {
+                                    updateState {
+                                        copy(
+                                            groups =
+                                            groups.map { g ->
+                                                if (g.tag == groupTag) {
+                                                    g.copy(selected = bestItemTag!!)
+                                                } else {
+                                                    g
+                                                }
+                                            },
+                                        )
+                                    }
                                 }
                             }
                             break

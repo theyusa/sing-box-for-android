@@ -434,8 +434,8 @@ private fun ProxyItemsList(items: List<GroupItem>, selectedTag: String, isSelect
                             item = item,
                             isSelected = item.tag == selectedTag,
                             isSelectable = isSelectable,
-                            onClick = remember { { onItemSelected(item.tag) } },
-                            onLongPress = remember { { onServerLongPress(item.tag) } },
+                            onClick = { onItemSelected(item.tag) },
+                            onLongPress = { onServerLongPress(item.tag) },
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
@@ -540,7 +540,7 @@ private fun ProxyChip(item: GroupItem, isSelected: Boolean, isSelectable: Boolea
 
     if (isSelectable) {
         Surface(
-            onClick = onClick,
+            onClick = {},
             modifier = surfaceModifier.combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongPress,
@@ -553,6 +553,7 @@ private fun ProxyChip(item: GroupItem, isSelected: Boolean, isSelectable: Boolea
         )
     } else {
         Surface(
+            onClick = {},
             modifier = surfaceModifier.combinedClickable(
                 onClick = {},
                 onLongClick = onLongPress,
