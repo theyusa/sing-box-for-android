@@ -90,24 +90,9 @@ class AutoConnectWork {
 
                             if (currentServerTag != bestServer.serverTag) {
                                 Log.i(TAG, "Switching to better server: ${bestServer.serverTag} (latency: ${bestServer.latencyMs}ms)")
-
-                                val groups = client.getGroups()
-                                var switched = false
-
-                                for (group in groups) {
-                                    if (group.items.any { it.tag == bestServer.serverTag }) {
-                                        client.selectOutbound(group.tag, bestServer.serverTag)
-                                        switched = true
-                                        break
-                                    }
-                                }
-
-                                if (switched) {
-                                    client.closeConnections()
-                                    Log.i(TAG, "Successfully switched to ${bestServer.serverTag}")
-                                } else {
-                                    Log.w(TAG, "Server ${bestServer.serverTag} not found in any group")
-                                }
+                                client.selectOutbound("main", bestServer.serverTag)
+                                client.closeConnections()
+                                Log.i(TAG, "Successfully switched to ${bestServer.serverTag}")
                             } else {
                                 Log.d(TAG, "Current server is already the best: $currentServerTag")
                             }
@@ -129,13 +114,8 @@ class AutoConnectWork {
 
         private suspend fun getCurrentServerTag(client: io.nekohasekai.libbox.CommandClient): String? {
             return try {
-                val groups = client.getGroups()
-                for (group in groups) {
-                    if (group.selected.isNotEmpty()) {
-                        return@getCurrentServerTag group.selected
-                    }
-                }
-                null
+                val status = client.status
+                status?.selectedOutbound
             } catch (e: Exception) {
                 Log.e(TAG, "Error getting current server tag", e)
                 null

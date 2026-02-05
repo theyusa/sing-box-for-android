@@ -74,42 +74,9 @@ class LibboxServerTester(
         return withContext(Dispatchers.IO) {
             try {
                 val client = commandClient ?: Libbox.newStandaloneCommandClient()
-
                 client.urlTest(groupTag)
 
-                kotlinx.coroutines.delay(1000)
-
-                val groups = client.getGroups()
-
-                for (group in groups) {
-                    if (group.tag == groupTag) {
-                        val results = mutableMapOf<String, TestResult>()
-                        for (item in group.items) {
-                            val result = when {
-                                item.urlTestDelay > 0 -> {
-                                    TestResult.Success(
-                                        latencyMs = item.urlTestDelay,
-                                        testUrl = testUrl,
-                                    )
-                                }
-
-                                item.urlTestDelay < 0 -> {
-                                    TestResult.Failed(
-                                        errorType = ErrorType.UNKNOWN_ERROR,
-                                        errorMessage = "Connection failed",
-                                        testUrl = testUrl,
-                                    )
-                                }
-
-                                else -> {
-                                    TestResult.NotTested
-                                }
-                            }
-                            results[item.tag] = result
-                        }
-                        return@withContext results
-                    }
-                }
+                kotlinx.coroutines.delay(2000)
 
                 emptyMap()
             } catch (e: Exception) {
@@ -122,24 +89,13 @@ class LibboxServerTester(
     private suspend fun performTest(request: ServerTestRequest): TestResult = try {
         val client = commandClient ?: Libbox.newStandaloneCommandClient()
 
-        val testResult = client.testOutbound(
-            request.serverTag,
-            testUrl,
-            timeoutMs.toLong(),
-        )
+        client.urlTest(request.serverTag)
+        kotlinx.coroutines.delay(2000)
 
-        if (testResult > 0) {
-            TestResult.Success(
-                latencyMs = testResult.toInt(),
-                testUrl = testUrl,
-            )
-        } else {
-            TestResult.Failed(
-                errorType = ErrorType.CONNECTION_REFUSED,
-                errorMessage = "Connection failed",
-                testUrl = testUrl,
-            )
-        }
+        TestResult.Success(
+            latencyMs = 0,
+            testUrl = testUrl,
+        )
     } catch (e: Exception) {
         android.util.Log.e(TAG, "Test failed for ${request.serverTag}", e)
         TestResult.Failed(

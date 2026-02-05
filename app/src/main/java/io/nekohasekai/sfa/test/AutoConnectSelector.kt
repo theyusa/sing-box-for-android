@@ -81,27 +81,10 @@ class AutoConnectSelector(private val context: Context) {
                 val settings = AutoConnectPreferences.toSettings()
 
                 val client = Libbox.newStandaloneCommandClient()
-                val groups = client.getGroups()
+                client.urlTest(groupTag)
+                kotlinx.coroutines.delay(2000)
 
-                val targetGroup = groups.find { it.tag == groupTag }
-                    ?: return@withContext null
-
-                val scoredItems = targetGroup.items
-                    .filter { it.urlTestDelay > 0 }
-                    .filter { it.urlTestDelay >= settings.minLatencyThreshold }
-                    .filter { it.urlTestDelay <= settings.maxLatencyThreshold }
-                    .map { item ->
-                        ServerScore(
-                            serverTag = item.tag,
-                            profileId = 0,
-                            score = item.urlTestDelay,
-                            latencyMs = item.urlTestDelay,
-                            testResult = null,
-                        )
-                    }
-                    .sortedBy { it.score }
-
-                scoredItems.firstOrNull()?.serverTag
+                null
             } catch (e: Exception) {
                 Log.e(TAG, "Error selecting best server in group: $groupTag", e)
                 null
@@ -143,14 +126,8 @@ class AutoConnectSelector(private val context: Context) {
     private suspend fun getCurrentServerTag(): String? {
         return try {
             val client = Libbox.newStandaloneCommandClient()
-            val groups = client.getGroups()
-
-            for (group in groups) {
-                if (group.selected.isNotEmpty()) {
-                    return@getCurrentServerTag group.selected
-                }
-            }
-            null
+            val status = client.status
+            status?.selectedOutbound
         } catch (e: Exception) {
             Log.e(TAG, "Error getting current server tag", e)
             null

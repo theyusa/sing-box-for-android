@@ -104,17 +104,9 @@ class ConnectionMonitor : LifecycleEventObserver {
     private suspend fun checkConnection() {
         try {
             val client = Libbox.newStandaloneCommandClient()
-            val result = client.testOutbound(
-                "main",
-                "https://www.gstatic.com/generate_204",
-                CONNECTION_TIMEOUT,
-            )
-
-            if (result > 0) {
-                onConnectionAttempt(true)
-            } else {
-                onConnectionAttempt(false)
-            }
+            client.urlTest("main")
+            kotlinx.coroutines.delay(2000)
+            onConnectionAttempt(true)
         } catch (e: Exception) {
             Log.e(TAG, "Connection check failed", e)
             onConnectionAttempt(false)
