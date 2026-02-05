@@ -49,6 +49,11 @@ class BoxService(private val service: Service, private val platformInterface: Pl
         private const val PROFILE_UPDATE_INTERVAL = 15L * 60 * 1000 // 15 minutes in milliseconds
         private const val TAG = "BoxService"
 
+        @Volatile
+        private var isRunning = false
+
+        fun isServiceRunning(): Boolean = isRunning
+
         fun start() {
             val intent =
                 runBlocking {
@@ -170,6 +175,7 @@ class BoxService(private val service: Service, private val platformInterface: Pl
             }
 
             status.postValue(Status.Started)
+            isRunning = true
             withContext(Dispatchers.Main) {
                 notification.show(lastProfileName, R.string.status_started)
             }
@@ -183,6 +189,7 @@ class BoxService(private val service: Service, private val platformInterface: Pl
     override fun serviceStop() {
         notification.close()
         status.postValue(Status.Starting)
+        isRunning = false
         val pfd = fileDescriptor
         if (pfd != null) {
             pfd.close()

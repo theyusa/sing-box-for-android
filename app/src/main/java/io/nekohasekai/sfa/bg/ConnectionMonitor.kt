@@ -41,14 +41,18 @@ class ConnectionMonitor : LifecycleEventObserver {
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
     }
 
-    override fun onStart(owner: LifecycleOwner) {
-        Log.d(TAG, "App started, starting connection monitor")
-        startMonitoring()
-    }
-
-    override fun onStop(owner: LifecycleOwner) {
-        Log.d(TAG, "App stopped, pausing connection monitor")
-        stopMonitoring()
+    override fun onStateChanged(source: androidx.lifecycle.LifecycleOwner, event: androidx.lifecycle.Lifecycle.Event) {
+        when (event) {
+            androidx.lifecycle.Lifecycle.Event.ON_START -> {
+                Log.d(TAG, "App started, starting connection monitor")
+                startMonitoring()
+            }
+            androidx.lifecycle.Lifecycle.Event.ON_STOP -> {
+                Log.d(TAG, "App stopped, pausing connection monitor")
+                stopMonitoring()
+            }
+            else -> {}
+        }
     }
 
     fun startMonitoring() {

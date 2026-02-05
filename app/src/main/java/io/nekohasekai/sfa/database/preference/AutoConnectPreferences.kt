@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.database.preference
 
+import io.nekohasekai.sfa.database.Settings
 import io.nekohasekai.sfa.test.AutoConnectSettings
 
 object AutoConnectPreferences {
@@ -12,7 +13,7 @@ object AutoConnectPreferences {
     private const val KEY_MIN_LATENCY_THRESHOLD = "min_latency_threshold"
     private const val KEY_MAX_LATENCY_THRESHOLD = "max_latency_threshold"
 
-    private val store = RoomPreferenceDataStore(PublicDatabase.kvPairDao)
+    private val store = Settings.dataStore
 
     var enabled: Boolean
         get() = store.getBoolean(KEY_AUTO_CONNECT_ENABLED, false)

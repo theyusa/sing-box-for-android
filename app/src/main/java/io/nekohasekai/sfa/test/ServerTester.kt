@@ -19,7 +19,7 @@ interface ServerTester {
 }
 
 class LibboxServerTester(
-    private val commandClient: CommandClient? = null,
+    private val commandClient: io.nekohasekai.libbox.CommandClient? = null,
     private val testUrl: String = "https://www.gstatic.com/generate_204",
     private val timeoutMs: Int = 5000,
 ) : ServerTester {
@@ -73,11 +73,7 @@ class LibboxServerTester(
     override suspend fun testOutboundGroup(groupTag: String): Map<String, TestResult> {
         return withContext(Dispatchers.IO) {
             try {
-                if (commandClient?.isConnected != true) {
-                    return@withContext emptyMap()
-                }
-
-                val client = commandClient.standaloneClient ?: Libbox.newStandaloneCommandClient()
+                val client = commandClient ?: Libbox.newStandaloneCommandClient()
 
                 client.urlTest(groupTag)
 
@@ -124,7 +120,7 @@ class LibboxServerTester(
     }
 
     private suspend fun performTest(request: ServerTestRequest): TestResult = try {
-        val client = commandClient?.standaloneClient ?: Libbox.newStandaloneCommandClient()
+        val client = commandClient ?: Libbox.newStandaloneCommandClient()
 
         val testResult = client.testOutbound(
             request.serverTag,

@@ -14,7 +14,7 @@ class ServerTestRepository(
 ) {
     companion object {
         private const val TAG = "ServerTestRepository"
-        private const val CACHE_VALIDITY_MS = TimeUnit.MINUTES.toMillis(5)
+        private val CACHE_VALIDITY_MS = TimeUnit.MINUTES.toMillis(5)
     }
 
     suspend fun testServer(request: ServerTestRequest): ServerTestResult {
