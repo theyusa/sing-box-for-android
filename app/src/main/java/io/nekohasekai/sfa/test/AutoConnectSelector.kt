@@ -3,7 +3,7 @@ package io.nekohasekai.sfa.test
 import android.content.Context
 import android.util.Log
 import io.nekohasekai.libbox.Libbox
-import io.nekohasekai.sfa.database.ProfileDatabase
+import io.nekohasekai.sfa.database.ProfileManager
 import io.nekohasekai.sfa.database.ServerTestResult
 import io.nekohasekai.sfa.database.preference.AutoConnectPreferences
 import kotlinx.coroutines.Dispatchers
@@ -35,7 +35,6 @@ class AutoConnectSelector(private val context: Context) {
                 return@withContext null
             }
 
-            val currentServerTag = getCurrentServerTag()
             val profileId = getCurrentProfileId()
 
             val scoredServers = allResults
@@ -63,11 +62,6 @@ class AutoConnectSelector(private val context: Context) {
             }
 
             val bestServer = scoredServers.first()
-
-            if (bestServer.serverTag == currentServerTag) {
-                Log.d(TAG, "Current server is already the best: $currentServerTag")
-                return@withContext null
-            }
 
             Log.i(TAG, "Best server selected: ${bestServer.serverTag} (score: ${bestServer.score}, latency: ${bestServer.latencyMs}ms)")
 
@@ -119,19 +113,8 @@ class AutoConnectSelector(private val context: Context) {
     }
 
     private suspend fun getAllTestResults(): List<ServerTestResult> {
-        val dao = ProfileDatabase.getInstance(context).serverTestResultDao()
+        val dao = ProfileManager.instance.serverTestResultDao()
         return dao.getRecentSuccessfulResults()
-    }
-
-    private suspend fun getCurrentServerTag(): String? {
-        return try {
-            val client = Libbox.newStandaloneCommandClient()
-            val status = client.status
-            status?.selectedOutbound
-        } catch (e: Exception) {
-            Log.e(TAG, "Error getting current server tag", e)
-            null
-        }
     }
 
     private suspend fun getCurrentProfileId(): Long = io.nekohasekai.sfa.database.Settings.selectedProfile

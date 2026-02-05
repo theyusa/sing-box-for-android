@@ -86,16 +86,10 @@ class AutoConnectWork {
                     if (bestServer != null) {
                         try {
                             val client = Libbox.newStandaloneCommandClient()
-                            val currentServerTag = getCurrentServerTag(client)
-
-                            if (currentServerTag != bestServer.serverTag) {
-                                Log.i(TAG, "Switching to better server: ${bestServer.serverTag} (latency: ${bestServer.latencyMs}ms)")
-                                client.selectOutbound("main", bestServer.serverTag)
-                                client.closeConnections()
-                                Log.i(TAG, "Successfully switched to ${bestServer.serverTag}")
-                            } else {
-                                Log.d(TAG, "Current server is already the best: $currentServerTag")
-                            }
+                            Log.i(TAG, "Switching to better server: ${bestServer.serverTag} (latency: ${bestServer.latencyMs}ms)")
+                            client.selectOutbound("main", bestServer.serverTag)
+                            client.closeConnections()
+                            Log.i(TAG, "Successfully switched to ${bestServer.serverTag}")
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to switch server", e)
                             return@withContext Result.retry()
@@ -109,16 +103,6 @@ class AutoConnectWork {
                     Log.e(TAG, "Auto-connect task failed", e)
                     Result.failure()
                 }
-            }
-        }
-
-        private suspend fun getCurrentServerTag(client: io.nekohasekai.libbox.CommandClient): String? {
-            return try {
-                val status = client.status
-                status?.selectedOutbound
-            } catch (e: Exception) {
-                Log.e(TAG, "Error getting current server tag", e)
-                null
             }
         }
     }
