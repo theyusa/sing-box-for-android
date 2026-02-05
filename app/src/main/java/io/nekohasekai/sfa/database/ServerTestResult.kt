@@ -16,8 +16,8 @@ import kotlinx.coroutines.flow.Flow
     tableName = "server_test_results",
     indices = [
         Index(value = ["serverTag", "profileId"], unique = true),
-        Index(value = ["profileId", "isSuccess"]),
-        Index(value = ["testedAt"]),
+        Index(value = ["profileId", "is_success"]),
+        Index(value = ["tested_at"]),
     ],
 )
 data class ServerTestResult(
@@ -71,25 +71,25 @@ data class ServerTestResult(
         @Query("SELECT * FROM server_test_results WHERE id = :id")
         fun get(id: Long): ServerTestResult?
 
-        @Query("SELECT * FROM server_test_results WHERE profileId = :profileId ORDER BY testedAt DESC")
+        @Query("SELECT * FROM server_test_results WHERE profileId = :profileId ORDER BY tested_at DESC")
         fun getByProfileId(profileId: Long): List<ServerTestResult>
 
-        @Query("SELECT * FROM server_test_results WHERE profileId = :profileId ORDER BY testedAt DESC")
+        @Query("SELECT * FROM server_test_results WHERE profileId = :profileId ORDER BY tested_at DESC")
         fun getByProfileIdFlow(profileId: Long): Flow<List<ServerTestResult>>
 
         @Query("SELECT * FROM server_test_results WHERE profileId = :profileId AND serverTag = :serverTag")
         fun getByProfileAndServer(profileId: Long, serverTag: String): ServerTestResult?
 
-        @Query("SELECT * FROM server_test_results WHERE profileId = :profileId AND isSuccess = 1 ORDER BY latency_ms ASC LIMIT 1")
+        @Query("SELECT * FROM server_test_results WHERE profileId = :profileId AND is_success = 1 ORDER BY latency_ms ASC LIMIT 1")
         fun getBestServerByProfile(profileId: Long): ServerTestResult?
 
-        @Query("SELECT * FROM server_test_results WHERE isSuccess = 1 ORDER BY testedAt DESC LIMIT :limit")
+        @Query("SELECT * FROM server_test_results WHERE is_success = 1 ORDER BY tested_at DESC LIMIT :limit")
         fun getRecentSuccessfulResults(limit: Int = 50): List<ServerTestResult>
 
-        @Query("SELECT * FROM server_test_results WHERE testedAt < :timestamp")
+        @Query("SELECT * FROM server_test_results WHERE tested_at < :timestamp")
         fun getOlderThan(timestamp: Long): List<ServerTestResult>
 
-        @Query("DELETE FROM server_test_results WHERE testedAt < :timestamp")
+        @Query("DELETE FROM server_test_results WHERE tested_at < :timestamp")
         fun deleteOlderThan(timestamp: Long)
     }
 }
