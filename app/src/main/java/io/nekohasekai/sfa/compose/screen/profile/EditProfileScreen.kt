@@ -492,7 +492,7 @@ fun EditProfileScreen(
                                 .clickable {
                                     onNavigateToEditContent(
                                         uiState.name,
-                                        uiState.profileType == TypedProfile.Type.Remote,
+                                        false,
                                     )
                                 },
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -513,12 +513,7 @@ fun EditProfileScreen(
                                     tint = MaterialTheme.colorScheme.primary,
                                 )
                                 Text(
-                                    text =
-                                    if (uiState.profileType == TypedProfile.Type.Remote) {
-                                        stringResource(R.string.json_viewer)
-                                    } else {
-                                        stringResource(R.string.json_editor)
-                                    },
+                                    text = stringResource(R.string.json_editor),
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.weight(1f),
