@@ -9,6 +9,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,8 +26,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomSheetScaffold
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -34,14 +42,18 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -68,6 +80,9 @@ fun GroupsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+
+    var selectedServer by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     // Stable callbacks to prevent recomposition
     val onToggleExpanded =
@@ -140,6 +155,7 @@ fun GroupsScreen(
                     onToggleExpanded = remember { { onToggleExpanded(group.tag) } },
                     onItemSelected = remember { { itemTag -> onItemSelected(group.tag, itemTag) } },
                     onUrlTest = remember { { onUrlTest(group.tag) } },
+                    onServerLongPress = remember { { itemTag -> selectedServer = group.tag to itemTag } },
                 )
             }
         }
@@ -154,6 +170,7 @@ private fun ProxyGroupCard(
     onToggleExpanded: () -> Unit,
     onItemSelected: (String) -> Unit,
     onUrlTest: () -> Unit,
+    onServerLongPress: (String) -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -211,6 +228,96 @@ private fun ProxyGroupCard(
                                         )
                                     }
                                 }
+                            }
+
+                            if (selectedServer != null) {
+                                val (groupTag, serverTag) = selectedServer!!
+                                ModalBottomSheet(
+                                    onDismissRequest = { selectedServer = null },
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(16.dp),
+                                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                                    ) {
+                                        Text(
+                                            text = serverTag,
+                                            style = MaterialTheme.typography.titleLarge,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                        )
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        ) {
+                                            Button(
+                                                onClick = {
+                                                    viewModel.openServerEditor(groupTag, serverTag)
+                                                    selectedServer = null
+                                                },
+                                                modifier = Modifier.weight(1f),
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = MaterialTheme.colorScheme.primary,
+                                                ),
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Edit,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(20.dp),
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(stringResource(R.string.edit))
+                                            }
+
+                                            Button(
+                                                onClick = {
+                                                    showDeleteDialog = true
+                                                },
+                                                modifier = Modifier.weight(1f),
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = MaterialTheme.colorScheme.error,
+                                                ),
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Delete,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(20.dp),
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(stringResource(android.R.string.delete))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (showDeleteDialog && selectedServer != null) {
+                                val (_, serverTag) = selectedServer!!
+                                AlertDialog(
+                                    onDismissRequest = { showDeleteDialog = false },
+                                    title = { Text(stringResource(R.string.delete_server)) },
+                                    text = { Text(stringResource(R.string.delete_server_confirm, serverTag)) },
+                                    confirmButton = {
+                                        TextButton(
+                                            onClick = {
+                                                viewModel.deleteServer(groupTag, serverTag)
+                                                showDeleteDialog = false
+                                                selectedServer = null
+                                            },
+                                        ) {
+                                            Text(
+                                                stringResource(android.R.string.ok),
+                                                color = MaterialTheme.colorScheme.error,
+                                            )
+                                        }
+                                    },
+                                    dismissButton = {
+                                        TextButton(
+                                            onClick = { showDeleteDialog = false },
+                                        ) {
+                                            Text(stringResource(android.R.string.cancel))
+                                        }
+                                    },
+                                )
                             }
                         }
                     },
@@ -286,6 +393,7 @@ private fun ProxyGroupCard(
                         selectedTag = group.selected,
                         isSelectable = group.selectable,
                         onItemSelected = onItemSelected,
+                        onServerLongPress = onServerLongPress,
                     )
                 }
             }
@@ -293,8 +401,9 @@ private fun ProxyGroupCard(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ProxyItemsList(items: List<GroupItem>, selectedTag: String, isSelectable: Boolean, onItemSelected: (String) -> Unit) {
+private fun ProxyItemsList(items: List<GroupItem>, selectedTag: String, isSelectable: Boolean, onItemSelected: (String) -> Unit, onServerLongPress: (String) -> Unit) {
     // Cache the chunked items to avoid re-chunking on every recomposition
     val itemsPerRow = 2
     val chunkedItems =
@@ -324,6 +433,7 @@ private fun ProxyItemsList(items: List<GroupItem>, selectedTag: String, isSelect
                             isSelected = item.tag == selectedTag,
                             isSelectable = isSelectable,
                             onClick = remember { { onItemSelected(item.tag) } },
+                            onLongPress = remember { { onServerLongPress(item.tag) } },
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
@@ -339,7 +449,7 @@ private fun ProxyItemsList(items: List<GroupItem>, selectedTag: String, isSelect
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ProxyChip(item: GroupItem, isSelected: Boolean, isSelectable: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun ProxyChip(item: GroupItem, isSelected: Boolean, isSelectable: Boolean, onClick: () -> Unit, onLongPress: () -> Unit, modifier: Modifier = Modifier) {
     // Use simpler, faster animations
     val animatedElevation by animateFloatAsState(
         targetValue = if (isSelected) 6.dp.value else 1.dp.value,
@@ -429,7 +539,10 @@ private fun ProxyChip(item: GroupItem, isSelected: Boolean, isSelectable: Boolea
     if (isSelectable) {
         Surface(
             onClick = onClick,
-            modifier = surfaceModifier,
+            modifier = surfaceModifier.combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongPress,
+            ),
             shape = surfaceShape,
             color = surfaceColor,
             tonalElevation = animatedElevation.dp,
@@ -438,7 +551,10 @@ private fun ProxyChip(item: GroupItem, isSelected: Boolean, isSelectable: Boolea
         )
     } else {
         Surface(
-            modifier = surfaceModifier,
+            modifier = surfaceModifier.combinedClickable(
+                onClick = {},
+                onLongClick = onLongPress,
+            ),
             shape = surfaceShape,
             color = surfaceColor,
             tonalElevation = animatedElevation.dp,

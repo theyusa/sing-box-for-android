@@ -9,6 +9,8 @@ import io.nekohasekai.sfa.compose.model.Group
 import io.nekohasekai.sfa.compose.model.GroupItem
 import io.nekohasekai.sfa.compose.model.toList
 import io.nekohasekai.sfa.constant.Status
+import io.nekohasekai.sfa.database.ProfileManager
+import io.nekohasekai.sfa.database.Settings
 import io.nekohasekai.sfa.utils.AppLifecycleObserver
 import io.nekohasekai.sfa.utils.CommandClient
 import kotlinx.coroutines.Dispatchers
@@ -16,6 +18,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
 
 data class GroupsUiState(
     val groups: List<Group> = emptyList(),
@@ -26,6 +31,7 @@ data class GroupsUiState(
 
 sealed class GroupsEvent : ScreenEvent {
     data class GroupSelected(val groupTag: String, val itemTag: String) : GroupsEvent()
+    data class OpenServerEditor(val groupTag: String, val serverTag: String) : GroupsEvent()
 }
 
 class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
@@ -273,6 +279,101 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
             } catch (e: Exception) {
                 sendError(e)
             }
+        }
+    }
+
+    fun deleteServer(groupTag: String, serverTag: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val profileId = getProfileId()
+                val profile = ProfileManager.get(profileId) ?: run {
+                    withContext(Dispatchers.Main) {
+                        sendError(Exception("Profile not found"))
+                    }
+                    return@launch
+                }
+
+                val configFile = File(profile.typed.path)
+                if (!configFile.exists()) {
+                    withContext(Dispatchers.Main) {
+                        sendError(Exception("Config file not found"))
+                    }
+                    return@launch
+                }
+
+                val configJson = JSONObject(configFile.readText())
+
+                val outbounds = configJson.optJSONArray("outbounds") ?: run {
+                    withContext(Dispatchers.Main) {
+                        sendError(Exception("No outbounds found in config"))
+                    }
+                    return@launch
+                }
+
+                val newOutbounds = JSONArray()
+                var found = false
+
+                for (i in 0 until outbounds.length()) {
+                    val outbound = outbounds.getJSONObject(i)
+                    val tag = outbound.optString("tag", "")
+
+                    if (tag == serverTag) {
+                        found = true
+                    } else {
+                        newOutbounds.put(outbound)
+                    }
+                }
+
+                if (!found) {
+                    withContext(Dispatchers.Main) {
+                        sendError(Exception("Server not found in config"))
+                    }
+                    return@launch
+                }
+
+                configJson.put("outbounds", newOutbounds)
+
+                configFile.writeText(configJson.toString(2))
+
+                withContext(Dispatchers.Main) {
+                    Libbox.newStandaloneCommandClient().serviceReload()
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    sendError(e)
+                }
+            }
+        }
+    }
+
+    fun openServerEditor(groupTag: String, serverTag: String) {
+        sendEvent(GroupsEvent.OpenServerEditor(groupTag, serverTag))
+    }
+
+    suspend fun getServerConfig(groupTag: String, serverTag: String): JSONObject? = withContext(Dispatchers.IO) {
+        try {
+            val profileId = getProfileId()
+            val profile = ProfileManager.get(profileId) ?: return@withContext null
+
+            val configFile = File(profile.typed.path)
+            if (!configFile.exists()) return@withContext null
+
+            val configJson = JSONObject(configFile.readText())
+
+            val outbounds = configJson.optJSONArray("outbounds") ?: return@withContext null
+
+            for (i in 0 until outbounds.length()) {
+                val outbound = outbounds.getJSONObject(i)
+                val tag = outbound.optString("tag", "")
+
+                if (tag == serverTag) {
+                    return@withContext outbound
+                }
+            }
+
+            null
+        } catch (e: Exception) {
+            null
         }
     }
 

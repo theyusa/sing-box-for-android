@@ -455,4 +455,6 @@
     <string name="reboot_required">Reboot required</string>
     
     <string name="profile_force_resolve">Force Resolve</string>
+    <string name="delete_server">Delete Server</string>
+    <string name="delete_server_confirm">Are you sure you want to delete server \"%s\"?</string>
 </resources>
