@@ -69,20 +69,18 @@ class AutoConnectSelector(private val context: Context) {
         }
     }
 
-    suspend fun selectBestServerInGroup(groupTag: String): String? {
-        return withContext(Dispatchers.IO) {
-            try {
-                val settings = AutoConnectPreferences.toSettings()
+    suspend fun selectBestServerInGroup(groupTag: String): String? = withContext(Dispatchers.IO) {
+        try {
+            val settings = AutoConnectPreferences.toSettings()
 
-                val client = Libbox.newStandaloneCommandClient()
-                client.urlTest(groupTag)
-                kotlinx.coroutines.delay(2000)
+            val client = Libbox.newStandaloneCommandClient()
+            client.urlTest(groupTag)
+            kotlinx.coroutines.delay(2000)
 
-                null
-            } catch (e: Exception) {
-                Log.e(TAG, "Error selecting best server in group: $groupTag", e)
-                null
-            }
+            null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error selecting best server in group: $groupTag", e)
+            null
         }
     }
 

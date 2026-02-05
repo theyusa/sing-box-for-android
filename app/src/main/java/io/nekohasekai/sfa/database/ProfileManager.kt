@@ -20,7 +20,7 @@ object ProfileManager {
     }
 
     @OptIn(DelicateCoroutinesApi::class)
-    private val instance by lazy {
+    internal val instance by lazy {
         Application.application.getDatabasePath(Path.PROFILES_DATABASE_PATH).parentFile?.mkdirs()
         Room
             .databaseBuilder(

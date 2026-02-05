@@ -50,7 +50,7 @@ abstract class ProfileDatabase : RoomDatabase() {
                     )
                     database.execSQL(
                         "CREATE INDEX IF NOT EXISTS `index_server_test_results_tested_at` " +
-                        "ON `server_test_results` (`tested_at`)",
+                            "ON `server_test_results` (`tested_at`)",
                     )
                 }
             }

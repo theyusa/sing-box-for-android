@@ -70,19 +70,17 @@ class LibboxServerTester(
 
     private suspend fun asyncTest(request: ServerTestRequest): ServerTestResponse = testServer(request)
 
-    override suspend fun testOutboundGroup(groupTag: String): Map<String, TestResult> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val client = commandClient ?: Libbox.newStandaloneCommandClient()
-                client.urlTest(groupTag)
+    override suspend fun testOutboundGroup(groupTag: String): Map<String, TestResult> = withContext(Dispatchers.IO) {
+        try {
+            val client = commandClient ?: Libbox.newStandaloneCommandClient()
+            client.urlTest(groupTag)
 
-                kotlinx.coroutines.delay(2000)
+            kotlinx.coroutines.delay(2000)
 
-                emptyMap()
-            } catch (e: Exception) {
-                android.util.Log.e(TAG, "Error testing outbound group: $groupTag", e)
-                emptyMap()
-            }
+            emptyMap()
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error testing outbound group: $groupTag", e)
+            emptyMap()
         }
     }
 
