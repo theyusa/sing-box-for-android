@@ -95,10 +95,8 @@ class AutoConnectSelector(private val context: Context) {
                         ) {
                             Log.i(TAG, "Best server in group $groupTag: ${bestResult.serverTag} (latency: ${latency}ms)")
 
-                            val selected = Libbox.newStandaloneCommandClient().selectOutbound(groupTag, bestResult.serverTag)
-                            if (selected) {
-                                return@withContext bestResult.serverTag
-                            }
+                            Libbox.newStandaloneCommandClient().selectOutbound(groupTag, bestResult.serverTag)
+                            return@withContext bestResult.serverTag
                         }
                     }
                 }

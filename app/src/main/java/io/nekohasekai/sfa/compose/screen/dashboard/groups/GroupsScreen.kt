@@ -160,6 +160,96 @@ fun GroupsScreen(
             }
         }
     }
+
+    if (selectedServer != null) {
+        val (groupTag, serverTag) = selectedServer!!
+        ModalBottomSheet(
+            onDismissRequest = { selectedServer = null },
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(
+                    text = serverTag,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Button(
+                        onClick = {
+                            viewModel.openServerEditor(groupTag, serverTag)
+                            selectedServer = null
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                        ),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.edit))
+                    }
+
+                    Button(
+                        onClick = {
+                            showDeleteDialog = true
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                        ),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.delete))
+                    }
+                }
+            }
+        }
+    }
+
+    if (showDeleteDialog && selectedServer != null) {
+        val (groupTag, serverTag) = selectedServer!!
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text(stringResource(R.string.delete_server)) },
+            text = { Text(stringResource(R.string.delete_server_confirm, serverTag)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteServer(groupTag, serverTag)
+                        showDeleteDialog = false
+                        selectedServer = null
+                    },
+                ) {
+                    Text(
+                        stringResource(android.R.string.ok),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteDialog = false },
+                ) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -228,96 +318,6 @@ private fun ProxyGroupCard(
                                         )
                                     }
                                 }
-                            }
-
-                            if (selectedServer != null) {
-                                val (groupTag, serverTag) = selectedServer!!
-                                ModalBottomSheet(
-                                    onDismissRequest = { selectedServer = null },
-                                ) {
-                                    Column(
-                                        modifier = Modifier.padding(16.dp),
-                                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                                    ) {
-                                        Text(
-                                            text = serverTag,
-                                            style = MaterialTheme.typography.titleLarge,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                        )
-
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                        ) {
-                                            Button(
-                                                onClick = {
-                                                    viewModel.openServerEditor(groupTag, serverTag)
-                                                    selectedServer = null
-                                                },
-                                                modifier = Modifier.weight(1f),
-                                                colors = ButtonDefaults.buttonColors(
-                                                    containerColor = MaterialTheme.colorScheme.primary,
-                                                ),
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Edit,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(20.dp),
-                                                )
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Text(stringResource(R.string.edit))
-                                            }
-
-                                            Button(
-                                                onClick = {
-                                                    showDeleteDialog = true
-                                                },
-                                                modifier = Modifier.weight(1f),
-                                                colors = ButtonDefaults.buttonColors(
-                                                    containerColor = MaterialTheme.colorScheme.error,
-                                                ),
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Delete,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(20.dp),
-                                                )
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Text(stringResource(android.R.string.delete))
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            if (showDeleteDialog && selectedServer != null) {
-                                val (_, serverTag) = selectedServer!!
-                                AlertDialog(
-                                    onDismissRequest = { showDeleteDialog = false },
-                                    title = { Text(stringResource(R.string.delete_server)) },
-                                    text = { Text(stringResource(R.string.delete_server_confirm, serverTag)) },
-                                    confirmButton = {
-                                        TextButton(
-                                            onClick = {
-                                                viewModel.deleteServer(groupTag, serverTag)
-                                                showDeleteDialog = false
-                                                selectedServer = null
-                                            },
-                                        ) {
-                                            Text(
-                                                stringResource(android.R.string.ok),
-                                                color = MaterialTheme.colorScheme.error,
-                                            )
-                                        }
-                                    },
-                                    dismissButton = {
-                                        TextButton(
-                                            onClick = { showDeleteDialog = false },
-                                        ) {
-                                            Text(stringResource(android.R.string.cancel))
-                                        }
-                                    },
-                                )
                             }
                         }
                     },
