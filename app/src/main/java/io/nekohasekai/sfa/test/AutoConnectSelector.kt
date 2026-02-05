@@ -69,14 +69,47 @@ class AutoConnectSelector(private val context: Context) {
         }
     }
 
-    suspend fun selectBestServerInGroup(groupTag: String): String? = withContext(Dispatchers.IO) {
+    suspend fun selectBestServerInGroup(groupTag: String, profileId: Long): String? = withContext(Dispatchers.IO) {
         try {
             val settings = AutoConnectPreferences.toSettings()
 
             val client = Libbox.newStandaloneCommandClient()
             client.urlTest(groupTag)
-            kotlinx.coroutines.delay(2000)
 
+            var retries = 0
+            val maxRetries = 10
+            val retryDelayMs = 500L
+
+            while (retries < maxRetries) {
+                val results = getAllTestResults()
+                    .filter { it.isSuccess }
+                    .filter { it.profileId == profileId }
+
+                if (results.isNotEmpty()) {
+                    val bestResult = results.minByOrNull { it.latencyMs ?: Int.MAX_VALUE }
+
+                    if (bestResult != null && bestResult.latencyMs != null) {
+                        val latency = bestResult.latencyMs!!
+                        if (latency >= settings.minLatencyThreshold &&
+                            latency <= settings.maxLatencyThreshold
+                        ) {
+                            Log.i(TAG, "Best server in group $groupTag: ${bestResult.serverTag} (latency: ${latency}ms)")
+
+                            val selected = Libbox.newStandaloneCommandClient().selectOutbound(groupTag, bestResult.serverTag)
+                            if (selected) {
+                                return@withContext bestResult.serverTag
+                            }
+                        }
+                    }
+                }
+
+                retries++
+                if (retries < maxRetries) {
+                    kotlinx.coroutines.delay(retryDelayMs)
+                }
+            }
+
+            Log.w(TAG, "No suitable server found in group: $groupTag after $maxRetries retries")
             null
         } catch (e: Exception) {
             Log.e(TAG, "Error selecting best server in group: $groupTag", e)

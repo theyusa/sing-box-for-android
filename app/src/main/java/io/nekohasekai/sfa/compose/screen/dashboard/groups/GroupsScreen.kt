@@ -80,7 +80,7 @@ fun GroupsScreen(
         }
     val onUrlTest =
         remember<(String) -> Unit> {
-            { groupTag -> viewModel.urlTest(groupTag) }
+            { groupTag -> viewModel.urlTestAndSelectBest(groupTag, viewModel.getProfileId()) }
         }
 
     LaunchedEffect(serviceStatus, viewModel) {

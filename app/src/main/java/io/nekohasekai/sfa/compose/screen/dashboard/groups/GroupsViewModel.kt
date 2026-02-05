@@ -155,19 +155,15 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
     }
 
     fun selectGroupItem(groupTag: String, itemTag: String) {
-        // Check if this is actually a different selection
         val currentGroup = uiState.value.groups.find { it.tag == groupTag }
         if (currentGroup?.selected == itemTag) {
-            // Same item selected, no need to do anything
             return
         }
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                // Select the new outbound immediately
                 Libbox.newStandaloneCommandClient().selectOutbound(groupTag, itemTag)
 
-                // Update local state and show snackbar
                 withContext(Dispatchers.Main) {
                     updateState {
                         copy(
@@ -212,6 +208,64 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
         }
     }
 
+    fun getProfileId(): Long = io.nekohasekai.sfa.database.Settings.selectedProfile
+
+    fun urlTestAndSelectBest(groupTag: String, profileId: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val client = Libbox.newStandaloneCommandClient()
+                client.urlTest(groupTag)
+
+                var retries = 0
+                val maxRetries = 10
+                val retryDelayMs = 500L
+
+                var bestItemTag: String? = null
+                var bestLatency: Int? = null
+
+                while (retries < maxRetries) {
+                    val group = uiState.value.groups.find { it.tag == groupTag }
+                    if (group != null) {
+                        group.items.forEach { item ->
+                            if (item.urlTestTime > 0 && item.urlTestDelay > 0) {
+                                if (bestLatency == null || item.urlTestDelay < bestLatency) {
+                                    bestLatency = item.urlTestDelay
+                                    bestItemTag = item.tag
+                                }
+                            }
+                        }
+
+                        if (bestItemTag != null && bestItemTag != group.selected) {
+                            client.selectOutbound(groupTag, bestItemTag)
+                            withContext(Dispatchers.Main) {
+                                updateState {
+                                    copy(
+                                        groups =
+                                        groups.map { g ->
+                                            if (g.tag == groupTag) {
+                                                g.copy(selected = bestItemTag!!)
+                                            } else {
+                                                g
+                                            }
+                                        },
+                                    )
+                                }
+                            }
+                            break
+                        }
+                    }
+
+                    retries++
+                    if (retries < maxRetries) {
+                        kotlinx.coroutines.delay(retryDelayMs)
+                    }
+                }
+            } catch (e: Exception) {
+                sendError(e)
+            }
+        }
+    }
+
     fun urlTest(groupTag: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -222,10 +276,8 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
         }
     }
 
-    // CommandClient.Handler implementation
     override fun onConnected() {
         viewModelScope.launch(Dispatchers.Main) {
-            // Connection established, waiting for groups
         }
     }
 
@@ -245,16 +297,13 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
             val currentGroups = uiState.value.groups
             val newGroupsMap = newGroups.associateBy { it.tag }
 
-            // Smart merge: preserve existing Group objects when only delays change
             val mergedGroups =
                 if (currentGroups.isEmpty()) {
-                    // Initial load
                     newGroups.map(::Group)
                 } else {
                     currentGroups.map { existingGroup ->
                         val newGroupData = newGroupsMap[existingGroup.tag]
                         if (newGroupData != null) {
-                            // Check if only delays have changed
                             val newItems = newGroupData.items.toList()
                             val hasStructuralChange =
                                 existingGroup.items.size != newItems.size ||
@@ -263,10 +312,8 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
                                     existingGroup.selectable != newGroupData.selectable
 
                             if (hasStructuralChange) {
-                                // Structural change, create new Group
                                 Group(newGroupData)
                             } else {
-                                // Only delays might have changed, update items efficiently
                                 val updatedItems =
                                     existingGroup.items.mapIndexed { index, item ->
                                         val newItemData = newItems.getOrNull(index)
@@ -274,19 +321,18 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
                                             item.tag == newItemData.tag &&
                                             item.type == newItemData.type
                                         ) {
-                                            // Only update if delay actually changed
                                             if (item.urlTestDelay != newItemData.urlTestDelay ||
                                                 item.urlTestTime != newItemData.urlTestTime
                                             ) {
                                                 GroupItem(newItemData)
                                             } else {
-                                                item // Keep existing object
+                                                item
                                             }
                                         } else {
                                             if (newItemData != null) {
                                                 GroupItem(newItemData)
                                             } else {
-                                                item // Keep existing if index out of bounds
+                                                item
                                             }
                                         }
                                     }
