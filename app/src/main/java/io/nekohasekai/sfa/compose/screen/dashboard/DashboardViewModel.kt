@@ -1117,4 +1117,23 @@ ${if (server.uuid != null) "${if (server.type in listOf("vmess", "vless")) "UUID
             )
         }
     }
+
+    fun hideSubscriptionGroupsSheet() {
+        updateState { copy(showSubscriptionGroupsSheet = false) }
+    }
+
+    private fun saveDisabledItems(visibleCards: Set<CardGroup>) {
+        val allItems = CardGroup.values().toSet()
+        val actualVisibleCards = visibleCards + CardGroup.Profiles
+        val disabledItems = allItems - actualVisibleCards
+        Settings.dashboardDisabledItems = disabledItems.map { cardGroupToString(it) }.toSet()
+    }
+
+    private fun cardGroupToString(card: CardGroup): String = card.name
+
+    private fun stringToCardGroup(name: String): CardGroup? = try {
+        CardGroup.valueOf(name)
+    } catch (e: IllegalArgumentException) {
+        null
+    }
 }

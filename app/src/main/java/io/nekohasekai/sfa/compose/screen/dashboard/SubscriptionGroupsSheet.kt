@@ -31,7 +31,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -47,7 +46,6 @@ fun SubscriptionGroupsSheet(
     viewModel: DashboardViewModel,
     onDismiss: () -> Unit,
 ) {
-    val uiState by viewModel.uiState.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
 
     android.util.Log.d("SubscriptionGroupsSheet", "Showing sheet with ${servers.size} servers")
