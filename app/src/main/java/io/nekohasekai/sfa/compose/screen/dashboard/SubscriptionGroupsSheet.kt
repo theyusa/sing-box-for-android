@@ -33,6 +33,7 @@ fun SubscriptionGroupsSheet(
     servers: List<SubscriptionServer>,
     onDismiss: () -> Unit,
 ) {
+    android.util.Log.d("SubscriptionGroupsSheet", "Showing sheet with ${servers.size} servers")
     ModalBottomSheet(
         onDismissRequest = onDismiss,
     ) {
