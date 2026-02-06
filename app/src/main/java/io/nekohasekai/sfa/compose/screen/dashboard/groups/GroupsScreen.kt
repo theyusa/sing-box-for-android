@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
@@ -178,6 +179,7 @@ fun GroupsScreen(
                     onUrlTest = remember { { onUrlTest(group.tag) } },
                     onServerLongPress = remember { { itemTag -> selectedServer = group.tag to itemTag } },
                     onToggleMode = remember { { viewModel.toggleSelectionMode(group.tag) } },
+                    selectionMode = uiState.serverSelectionMode[group.tag] ?: ServerSelectionMode.SELECT,
                 )
             }
         }
@@ -309,6 +311,7 @@ private fun ProxyGroupCard(
     onUrlTest: () -> Unit,
     onServerLongPress: (String) -> Unit,
     onToggleMode: () -> Unit = {},
+    selectionMode: ServerSelectionMode = ServerSelectionMode.SELECT,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -385,10 +388,10 @@ private fun ProxyGroupCard(
                                     modifier = Modifier.size(40.dp),
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.TouchApp,
-                                        contentDescription = "Toggle Mode",
+                                        imageVector = if (selectionMode == ServerSelectionMode.AUTO) Icons.Default.SelectAll else Icons.Default.TouchApp,
+                                        contentDescription = if (selectionMode == ServerSelectionMode.AUTO) "Auto Mode" else "Select Mode",
                                         modifier = Modifier.size(20.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        tint = if (selectionMode == ServerSelectionMode.AUTO) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                             }

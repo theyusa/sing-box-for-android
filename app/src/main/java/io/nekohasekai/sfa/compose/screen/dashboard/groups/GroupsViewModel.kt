@@ -464,19 +464,11 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
 
             withContext(Dispatchers.Main) {
                 updateState {
-                    val subscriptionGroupTags = newGroups
-                        .filter { it.items.toList().size > 5 }
-                        .map { it.tag }
-                        .toSet()
+                    val allGroupTags = mergedGroups.map { it.tag }.toSet()
 
-                    val initialExpandedGroups = if (expandedGroups.isEmpty() && currentGroups.isEmpty()) {
-                        mergedGroups.filter { it.isExpand }.map { it.tag }.toSet() + subscriptionGroupTags
-                    } else {
-                        expandedGroups + subscriptionGroupTags
-                    }
                     copy(
                         groups = mergedGroups,
-                        expandedGroups = initialExpandedGroups,
+                        expandedGroups = allGroupTags,
                         isLoading = false,
                     )
                 }
@@ -496,6 +488,10 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
             copy(
                 serverSelectionMode = serverSelectionMode + (groupTag to newMode),
             )
+        }
+
+        if (newMode == ServerSelectionMode.AUTO) {
+            urlTestAndSelectBest(groupTag, getProfileId())
         }
     }
 
