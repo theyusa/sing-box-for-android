@@ -3,15 +3,66 @@ package io.nekohasekai.sfa.utils
 import android.util.Base64
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 
 class SubscriptionParser(private val urlParser: V2RayUrlParser) {
 
     suspend fun parseSubscriptionUrl(subscriptionUrl: String): List<JSONObject> = withContext(Dispatchers.IO) {
         try {
+            android.util.Log.d("SubscriptionParser", "Parsing sing-box subscription")
+            var jsonString = subscriptionUrl
+
+            // İlk olarak doğrudan JSON olarak dene
+            var configJson: JSONObject? = null
+            try {
+                configJson = JSONObject(jsonString)
+                android.util.Log.d("SubscriptionParser", "Parsed as direct JSON")
+            } catch (e: Exception) {
+                // Başarısız olursa Base64 decode et ve tekrar dene
+                try {
+                    val decoded = String(Base64.decode(jsonString, Base64.DEFAULT))
+                    configJson = JSONObject(decoded)
+                    android.util.Log.d("SubscriptionParser", "Parsed as Base64-encoded JSON")
+                } catch (e2: Exception) {
+                    android.util.Log.e("SubscriptionParser", "Failed to parse as JSON or Base64 JSON", e2)
+                    return@withContext emptyList()
+                }
+            }
+
+            // JSON'dan outbounds array'ini al
+            val outboundsArray = configJson.optJSONArray("outbounds")
+            if (outboundsArray == null) {
+                android.util.Log.w("SubscriptionParser", "No outbounds array found in JSON")
+                return@withContext emptyList()
+            }
+
+            // Server-type outbounds'ları filtrele
+            val serverOutbounds = mutableListOf<JSONObject>()
+            for (i in 0 until outboundsArray.length()) {
+                val outbound = outboundsArray.getJSONObject(i)
+                val type = outbound.optString("type", "")
+
+                // Sadece server-type outbounds (vmess, vless, trojan, shadowsocks)
+                if (type in listOf("vmess", "vless", "trojan", "shadowsocks")) {
+                    serverOutbounds.add(outbound)
+                    android.util.Log.d("SubscriptionParser", "Found server outbound: $type - ${outbound.optString("tag", "unnamed")}")
+                }
+            }
+
+            android.util.Log.d("SubscriptionParser", "Total server outbounds: ${serverOutbounds.size}")
+            return@withContext serverOutbounds
+        } catch (e: Exception) {
+            android.util.Log.e("SubscriptionParser", "Error parsing subscription", e)
+            return@withContext emptyList()
+        }
+    }
+
+    suspend fun parseSubscriptionUrlV2Ray(subscriptionUrl: String): List<JSONObject> = withContext(Dispatchers.IO) {
+        try {
             val content = subscriptionUrl
 
-            android.util.Log.d("SubscriptionParser", "Content length: ${content.length}")
+            android.util.Log.d("SubscriptionParser", "V2Ray content length: ${content.length}")
 
             val decoded = try {
                 String(Base64.decode(content, Base64.DEFAULT))
@@ -19,16 +70,16 @@ class SubscriptionParser(private val urlParser: V2RayUrlParser) {
                 String(Base64.decode(content.trim(), Base64.NO_WRAP))
             }
 
-            android.util.Log.d("SubscriptionParser", "Decoded length: ${decoded.length}")
+            android.util.Log.d("SubscriptionParser", "V2Ray decoded length: ${decoded.length}")
 
             val lines = decoded.split("\n").map { it.trim() }.filter { it.isNotEmpty() }
 
-            android.util.Log.d("SubscriptionParser", "Lines count: ${lines.size}")
+            android.util.Log.d("SubscriptionParser", "V2Ray lines count: ${lines.size}")
 
             val outbounds = mutableListOf<JSONObject>()
 
             for (line in lines) {
-                android.util.Log.d("SubscriptionParser", "Line: ${line.substring(0, minOf(50, line.length))}")
+                android.util.Log.d("SubscriptionParser", "V2Ray Line: ${line.substring(0, minOf(50, line.length))}")
 
                 when {
                     line.startsWith("vmess://") -> {
@@ -61,7 +112,7 @@ class SubscriptionParser(private val urlParser: V2RayUrlParser) {
                 }
             }
 
-            android.util.Log.d("SubscriptionParser", "Total outbounds: ${outbounds.size}")
+            android.util.Log.d("SubscriptionParser", "V2Ray total outbounds: ${outbounds.size}")
             outbounds
         } catch (e: Exception) {
             emptyList()
