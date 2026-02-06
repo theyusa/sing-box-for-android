@@ -770,12 +770,24 @@ class DashboardViewModel :
 
                 val profile = ProfileManager.get(profileId) ?: return@launch
 
+                // Force resolve ayarını geçici olarak devre dışı bırak
+                val originalForceResolve = profile.typed.forceResolve
+                profile.typed.forceResolve = false
+                ProfileManager.update(profile)
+
+                android.util.Log.d("DashboardViewModel", "Force resolve temporarily disabled for update (original: $originalForceResolve)")
+
                 val subscriptionParser = SubscriptionParser(V2RayUrlParser())
                 val importHandler = SubscriptionImportHandler(Application.application, subscriptionParser)
 
                 when (val result = importHandler.importSubscription(profile.typed.remoteURL, profileId)) {
                     is SubscriptionImportResult.Success -> {
                         android.util.Log.d("DashboardViewModel", "Import success: ${result.serverCount} servers, ${result.outbounds.size} outbounds")
+
+                        // Force resolve ayarını geri yükle
+                        profile.typed.forceResolve = originalForceResolve
+                        ProfileManager.update(profile)
+                        android.util.Log.d("DashboardViewModel", "Force resolve restored to: $originalForceResolve")
 
                         val servers = mutableListOf<SubscriptionServer>()
                         for (outbound in result.outbounds) {
@@ -819,6 +831,10 @@ class DashboardViewModel :
                         }
                     }
                     is SubscriptionImportResult.Error -> {
+                        // Force resolve ayarını geri yükle
+                        profile.typed.forceResolve = originalForceResolve
+                        ProfileManager.update(profile)
+
                         sendErrorMessage("Failed to refresh subscription: ${result.message}")
                         withContext(Dispatchers.Main) {
                             updateState { copy(updatingProfileId = null) }
@@ -826,6 +842,13 @@ class DashboardViewModel :
                     }
                 }
             } catch (e: Exception) {
+                // Hata durumunda force resolve ayarını geri yükle
+                val profile = ProfileManager.get(profileId)
+                profile?.let {
+                    profile.typed.forceResolve = it.typed.forceResolve
+                    ProfileManager.update(profile)
+                }
+
                 sendErrorMessage("Failed to refresh subscription: ${e.message}")
                 updateState { copy(updatingProfileId = null) }
             }
@@ -833,7 +856,65 @@ class DashboardViewModel :
     }
 
     fun showSubscriptionGroupsSheet() {
-        updateState { copy(showSubscriptionGroupsSheet = true) }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val profile = ProfileManager.get(uiState.value.selectedProfileId)
+                if (profile == null) {
+                    withContext(Dispatchers.Main) {
+                        sendErrorMessage("No profile selected")
+                    }
+                    return@launch
+                }
+
+                val configFile = java.io.File(profile.typed.path)
+                if (!configFile.exists()) {
+                    withContext(Dispatchers.Main) {
+                        sendErrorMessage("Config file not found")
+                    }
+                    return@launch
+                }
+
+                val configJson = org.json.JSONObject(configFile.readText())
+                val outbounds = configJson.optJSONArray("outbounds") ?: org.json.JSONArray()
+
+                android.util.Log.d("DashboardViewModel", "Loading servers from config: ${outbounds.length()} outbounds")
+
+                val servers = mutableListOf<SubscriptionServer>()
+                for (i in 0 until outbounds.length()) {
+                    val outbound = outbounds.getJSONObject(i)
+                    val type = outbound.optString("type", "")
+                    if (type in listOf("vmess", "vless", "trojan", "shadowsocks")) {
+                        val tag = outbound.optString("tag", "")
+                        val server = outbound.optString("server", "")
+                        val port = outbound.optInt("server_port", 0)
+                        val uuid = when (type) {
+                            "vmess", "vless" -> outbound.optString("uuid", null)
+                            "trojan" -> outbound.optString("password", null)
+                            "shadowsocks" -> outbound.optString("password", null)
+                            else -> null
+                        }
+                        if (tag.isNotEmpty() && server.isNotEmpty() && port > 0) {
+                            servers.add(SubscriptionServer(tag, type, server, port, uuid))
+                            android.util.Log.d("DashboardViewModel", "Loaded server: $tag ($type) $server:$port")
+                        }
+                    }
+                }
+
+                android.util.Log.d("DashboardViewModel", "Total servers loaded: ${servers.size}")
+
+                withContext(Dispatchers.Main) {
+                    updateState {
+                        copy(
+                            subscriptionServers = servers,
+                            showSubscriptionGroupsSheet = true,
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardViewModel", "Error loading servers from config", e)
+                sendErrorMessage("Error loading servers: ${e.message}")
+            }
+        }
     }
 
     fun hideSubscriptionGroupsSheet() {
