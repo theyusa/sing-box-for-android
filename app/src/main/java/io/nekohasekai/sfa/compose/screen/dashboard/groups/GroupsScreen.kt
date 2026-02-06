@@ -612,7 +612,7 @@ private fun ProxyChip(item: GroupItem, isSelected: Boolean, isSelectable: Boolea
 
     Surface(
         modifier = surfaceModifier.combinedClickable(
-            onClick = if (isSelectable) onClick else {},
+            onClick = if (isSelectable) onClick else ({ -> Unit }),
             onLongClick = onLongPress,
         ),
         shape = surfaceShape,
