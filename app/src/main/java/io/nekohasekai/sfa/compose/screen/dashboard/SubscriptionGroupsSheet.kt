@@ -34,6 +34,18 @@ fun SubscriptionGroupsSheet(
     onDismiss: () -> Unit,
 ) {
     android.util.Log.d("SubscriptionGroupsSheet", "Showing sheet with ${servers.size} servers")
+
+    val displayServers = if (servers.isEmpty()) {
+        android.util.Log.w("SubscriptionGroupsSheet", "No servers, showing test data")
+        listOf(
+            SubscriptionServer("Test Server 1", "vmess", "test1.example.com", 443, "abc-123-def-456"),
+            SubscriptionServer("Test Server 2", "vless", "test2.example.com", 443, "xyz-789-uvw-012"),
+            SubscriptionServer("Test Server 3", "trojan", "test3.example.com", 443, "password123"),
+            SubscriptionServer("Test Server 4", "shadowsocks", "test4.example.com", 8388, "aes-256-gcm"),
+        )
+    } else {
+        servers
+    }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
     ) {
@@ -68,7 +80,7 @@ fun SubscriptionGroupsSheet(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                if (servers.isEmpty()) {
+                if (displayServers.isEmpty()) {
                     Text(
                         text = "No servers found",
                         style = MaterialTheme.typography.bodyMedium,
@@ -78,7 +90,7 @@ fun SubscriptionGroupsSheet(
                     LazyColumn(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        items(servers) { server ->
+                        items(displayServers) { server ->
                             ServerItem(
                                 server = server,
                                 modifier = Modifier.fillMaxWidth(),

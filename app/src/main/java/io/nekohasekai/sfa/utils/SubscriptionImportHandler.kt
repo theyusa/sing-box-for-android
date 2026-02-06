@@ -23,7 +23,9 @@ class SubscriptionImportHandler(
 ) {
     suspend fun importSubscription(url: String, profileId: Long): SubscriptionImportResult = withContext(Dispatchers.IO) {
         try {
+            Log.d("SubscriptionImportHandler", "Fetching URL: $url")
             val content = HTTPClient().use { it.getString(url) }
+            Log.d("SubscriptionImportHandler", "Fetched content length: ${content.length}")
 
             val newOutbounds = subscriptionParser.parseSubscriptionUrl(content)
 
