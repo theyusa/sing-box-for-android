@@ -61,6 +61,8 @@ fun SubscriptionGroupsSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        windowInsets = androidx.compose.foundation.layout.WindowInsets(0.dp),
+        dragHandle = null,
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -103,7 +105,7 @@ fun SubscriptionGroupsSheet(
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(max = 400.dp),
+                            .heightIn(max = 500.dp),
                     ) {
                         items(servers) { server ->
                             ServerItem(
@@ -156,7 +158,7 @@ private fun ServerItem(
                 modifier = Modifier.weight(1f),
             ) {
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -177,23 +179,13 @@ private fun ServerItem(
                         )
                     }
 
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text(
-                            text = server.server,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Text(
-                            text = ":${server.port}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    Text(
+                        text = "${server.server}:${server.port}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
 

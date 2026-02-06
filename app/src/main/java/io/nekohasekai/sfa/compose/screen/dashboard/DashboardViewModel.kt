@@ -894,19 +894,118 @@ ${if (server.uuid != null) "${if (server.type in listOf("vmess", "vless")) "UUID
 
     fun editServer(server: SubscriptionServer) {
         android.util.Log.d("DashboardViewModel", "Editing server: ${server.tag}")
-        val editState = ServerEditState(
-            originalTag = server.tag,
-            tag = server.tag,
-            type = server.type,
-            server = server.server,
-            port = server.port,
-            uuid = server.uuid,
-        )
-        updateState {
-            copy(
-                showServerEditDialog = true,
-                editingServer = editState,
-            )
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val profile = ProfileManager.get(uiState.value.selectedProfileId)
+                if (profile == null) {
+                    sendErrorMessage("No profile selected")
+                    return@launch
+                }
+
+                val configFile = java.io.File(profile.typed.path)
+                val configJson = org.json.JSONObject(configFile.readText())
+                val outbounds = configJson.optJSONArray("outbounds") ?: org.json.JSONArray()
+
+                for (i in 0 until outbounds.length()) {
+                    val outbound = outbounds.getJSONObject(i)
+                    if (outbound.optString("tag") == server.tag) {
+                        val type = outbound.optString("type")
+                        val editState = parseOutboundToEditState(outbound, type)
+
+                        withContext(Dispatchers.Main) {
+                            updateState {
+                                copy(
+                                    showServerEditDialog = true,
+                                    editingServer = editState,
+                                )
+                            }
+                        }
+                        return@launch
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardViewModel", "Error loading server for editing", e)
+                sendErrorMessage("Failed to load server details: ${e.message}")
+            }
+        }
+    }
+
+    private fun parseOutboundToEditState(outbound: org.json.JSONObject, type: String): ServerEditState {
+        val tls = outbound.optJSONObject("tls")
+        val transport = outbound.optJSONObject("transport")
+
+        return when (type) {
+            "vmess" -> {
+                groups.ServerEditState(
+                    tag = outbound.optString("tag", ""),
+                    server = outbound.optString("server", ""),
+                    server_port = outbound.optInt("server_port", 443),
+                    uuid = outbound.optString("uuid", ""),
+                    security = outbound.optString("security", "auto"),
+                    alter_id = outbound.optInt("alter_id", 0),
+                    network = outbound.optString("network", "tcp"),
+                    tlsEnabled = tls != null && tls.optBoolean("enabled", false),
+                    tlsServerName = tls?.optString("server_name") ?: "",
+                    tlsInsecure = tls?.optBoolean("insecure") ?: false,
+                    transportType = transport?.optString("type") ?: "",
+                    transportPath = transport?.optString("path") ?: "",
+                    transportHost = transport?.optString("host") ?: "",
+                    protocolType = "vmess",
+                )
+            }
+            "vless" -> {
+                groups.ServerEditState(
+                    tag = outbound.optString("tag", ""),
+                    server = outbound.optString("server", ""),
+                    server_port = outbound.optInt("server_port", 443),
+                    uuid = outbound.optString("uuid", ""),
+                    network = outbound.optString("network", "tcp"),
+                    tlsEnabled = tls != null && tls.optBoolean("enabled", false),
+                    tlsServerName = tls?.optString("server_name") ?: "",
+                    tlsInsecure = tls?.optBoolean("insecure") ?: false,
+                    transportType = transport?.optString("type") ?: "",
+                    transportPath = transport?.optString("path") ?: "",
+                    transportHost = transport?.optString("host") ?: "",
+                    protocolType = "vless",
+                )
+            }
+            "trojan" -> {
+                groups.ServerEditState(
+                    tag = outbound.optString("tag", ""),
+                    server = outbound.optString("server", ""),
+                    server_port = outbound.optInt("server_port", 443),
+                    uuid = outbound.optString("password", ""),
+                    network = outbound.optString("network", "tcp"),
+                    tlsEnabled = tls != null && tls.optBoolean("enabled", false),
+                    tlsServerName = tls?.optString("server_name") ?: "",
+                    tlsInsecure = tls?.optBoolean("insecure") ?: false,
+                    transportType = transport?.optString("type") ?: "",
+                    transportPath = transport?.optString("path") ?: "",
+                    transportHost = transport?.optString("host") ?: "",
+                    protocolType = "trojan",
+                )
+            }
+            "shadowsocks" -> {
+                groups.ServerEditState(
+                    tag = outbound.optString("tag", ""),
+                    server = outbound.optString("server", ""),
+                    server_port = outbound.optInt("server_port", 443),
+                    uuid = outbound.optString("password", ""),
+                    network = outbound.optString("network", "tcp"),
+                    tlsEnabled = tls != null && tls.optBoolean("enabled", false),
+                    tlsServerName = tls?.optString("server_name") ?: "",
+                    tlsInsecure = tls?.optBoolean("insecure") ?: false,
+                    transportType = transport?.optString("type") ?: "",
+                    transportPath = transport?.optString("path") ?: "",
+                    transportHost = transport?.optString("host") ?: "",
+                    protocolType = "shadowsocks",
+                )
+            }
+            else -> {
+                groups.ServerEditState(
+                    protocolType = type,
+                )
+            }
         }
     }
 
@@ -965,21 +1064,20 @@ ${if (server.uuid != null) "${if (server.type in listOf("vmess", "vless")) "UUID
     }
 
     fun updateServerEditField(field: String, value: Any) {
-        val currentEdit = uiState.value.editingServer ?: return
+        val currentEdit = uiState.value.editingServer as? groups.ServerEditState ?: return
         val updatedEdit = when (field) {
             "tag" -> currentEdit.copy(tag = value as String)
             "server" -> currentEdit.copy(server = value as String)
-            "port" -> currentEdit.copy(port = (value as String).toIntOrNull() ?: currentEdit.port)
+            "port" -> currentEdit.copy(server_port = (value as String).toIntOrNull() ?: currentEdit.server_port)
             "uuid" -> currentEdit.copy(uuid = value as String)
             else -> currentEdit
         }
         updateState { copy(editingServer = updatedEdit) }
     }
 
-    fun saveServerEdit() {
+    fun saveServerEdit(editState: groups.ServerEditState) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val editState = uiState.value.editingServer ?: return@launch
                 val profile = ProfileManager.get(uiState.value.selectedProfileId)
                 if (profile == null) {
                     sendErrorMessage("No profile selected")
@@ -990,30 +1088,177 @@ ${if (server.uuid != null) "${if (server.type in listOf("vmess", "vless")) "UUID
                 val configJson = org.json.JSONObject(configFile.readText())
                 val outbounds = configJson.optJSONArray("outbounds") ?: org.json.JSONArray()
 
+                var found = false
                 for (i in 0 until outbounds.length()) {
                     val outbound = outbounds.getJSONObject(i)
                     val tag = outbound.optString("tag", "")
 
-                    if (tag == editState.originalTag) {
-                        android.util.Log.d("DashboardViewModel", "Updating server: $tag")
+                    if (tag == editState.tag) {
+                        android.util.Log.d("DashboardViewModel", "Updating server: $tag (${editState.protocolType})")
+                        found = true
 
-                        when (editState.type) {
-                            "vmess", "vless" -> outbound.put("uuid", editState.uuid ?: "")
-                            "trojan", "shadowsocks" -> outbound.put("password", editState.uuid ?: "")
-                        }
-                        outbound.put("server", editState.server)
-                        outbound.put("server_port", editState.port)
-                        if (tag != editState.tag) {
-                            outbound.put("tag", editState.tag)
-                        }
+                        when (editState.protocolType) {
+                            "vmess" -> {
+                                outbound.put("server", editState.server)
+                                outbound.put("server_port", editState.server_port)
+                                outbound.put("uuid", editState.uuid)
+                                outbound.put("security", editState.security)
+                                outbound.put("alter_id", editState.alter_id)
+                                outbound.put("network", editState.network)
 
+                                if (editState.tlsEnabled) {
+                                    val tls = org.json.JSONObject().apply {
+                                        put("enabled", true)
+                                        if (editState.tlsServerName.isNotEmpty()) {
+                                            put("server_name", editState.tlsServerName)
+                                        }
+                                        if (editState.tlsInsecure) {
+                                            put("insecure", true)
+                                        }
+                                    }
+                                    outbound.put("tls", tls)
+                                } else {
+                                    outbound.remove("tls")
+                                }
+
+                                if (editState.network == "ws") {
+                                    val transport = org.json.JSONObject().apply {
+                                        put("type", "ws")
+                                        if (editState.transportHost.isNotEmpty()) {
+                                            put("host", editState.transportHost)
+                                        }
+                                        if (editState.transportPath.isNotEmpty()) {
+                                            put("path", editState.transportPath)
+                                        }
+                                    }
+                                    outbound.put("transport", transport)
+                                } else {
+                                    outbound.remove("transport")
+                                }
+                            }
+                            "vless" -> {
+                                outbound.put("server", editState.server)
+                                outbound.put("server_port", editState.server_port)
+                                outbound.put("uuid", editState.uuid)
+                                outbound.put("network", editState.network)
+
+                                if (editState.tlsEnabled) {
+                                    val tls = org.json.JSONObject().apply {
+                                        put("enabled", true)
+                                        if (editState.tlsServerName.isNotEmpty()) {
+                                            put("server_name", editState.tlsServerName)
+                                        }
+                                        if (editState.tlsInsecure) {
+                                            put("insecure", true)
+                                        }
+                                    }
+                                    outbound.put("tls", tls)
+                                } else {
+                                    outbound.remove("tls")
+                                }
+
+                                if (editState.network == "ws") {
+                                    val transport = org.json.JSONObject().apply {
+                                        put("type", "ws")
+                                        if (editState.transportHost.isNotEmpty()) {
+                                            put("host", editState.transportHost)
+                                        }
+                                        if (editState.transportPath.isNotEmpty()) {
+                                            put("path", editState.transportPath)
+                                        }
+                                    }
+                                    outbound.put("transport", transport)
+                                } else {
+                                    outbound.remove("transport")
+                                }
+                            }
+                            "trojan" -> {
+                                outbound.put("server", editState.server)
+                                outbound.put("server_port", editState.server_port)
+                                outbound.put("password", editState.uuid)
+                                outbound.put("network", editState.network)
+
+                                if (editState.tlsEnabled) {
+                                    val tls = org.json.JSONObject().apply {
+                                        put("enabled", true)
+                                        if (editState.tlsServerName.isNotEmpty()) {
+                                            put("server_name", editState.tlsServerName)
+                                        }
+                                        if (editState.tlsInsecure) {
+                                            put("insecure", true)
+                                        }
+                                    }
+                                    outbound.put("tls", tls)
+                                } else {
+                                    outbound.remove("tls")
+                                }
+
+                                if (editState.network == "ws") {
+                                    val transport = org.json.JSONObject().apply {
+                                        put("type", "ws")
+                                        if (editState.transportHost.isNotEmpty()) {
+                                            put("host", editState.transportHost)
+                                        }
+                                        if (editState.transportPath.isNotEmpty()) {
+                                            put("path", editState.transportPath)
+                                        }
+                                    }
+                                    outbound.put("transport", transport)
+                                } else {
+                                    outbound.remove("transport")
+                                }
+                            }
+                            "shadowsocks" -> {
+                                outbound.put("server", editState.server)
+                                outbound.put("server_port", editState.server_port)
+                                outbound.put("password", editState.uuid)
+                                outbound.put("network", editState.network)
+
+                                if (editState.tlsEnabled) {
+                                    val tls = org.json.JSONObject().apply {
+                                        put("enabled", true)
+                                        if (editState.tlsServerName.isNotEmpty()) {
+                                            put("server_name", editState.tlsServerName)
+                                        }
+                                        if (editState.tlsInsecure) {
+                                            put("insecure", true)
+                                        }
+                                    }
+                                    outbound.put("tls", tls)
+                                } else {
+                                    outbound.remove("tls")
+                                }
+
+                                if (editState.network == "ws") {
+                                    val transport = org.json.JSONObject().apply {
+                                        put("type", "ws")
+                                        if (editState.transportHost.isNotEmpty()) {
+                                            put("host", editState.transportHost)
+                                        }
+                                        if (editState.transportPath.isNotEmpty()) {
+                                            put("path", editState.transportPath)
+                                        }
+                                    }
+                                    outbound.put("transport", transport)
+                                } else {
+                                    outbound.remove("transport")
+                                }
+                            }
+                        }
                         break
                     }
                 }
 
+                if (!found) {
+                    sendErrorMessage("Server not found in config")
+                    withContext(Dispatchers.Main) {
+                        hideServerEditDialog()
+                    }
+                    return@launch
+                }
+
                 io.nekohasekai.libbox.Libbox.checkConfig(configJson.toString())
 
-                // Force resolve aktifse IP'ye çevir
                 val finalContent = if (profile.typed.forceResolve) {
                     resolveDomainsInConfig(configJson.toString())
                 } else {
