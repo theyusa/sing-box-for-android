@@ -119,7 +119,7 @@ class V2RayUrlParser {
                 type = queryParams["type"] ?: "tcp",
                 host = queryParams["host"] ?: "",
                 path = queryParams["path"] ?: "",
-                name = name
+                name = name,
             )
         } catch (e: Exception) {
             return null
@@ -170,7 +170,7 @@ class V2RayUrlParser {
                 type = queryParams["type"] ?: "tcp",
                 host = queryParams["host"] ?: "",
                 path = queryParams["path"] ?: "",
-                name = name
+                name = name,
             )
         } catch (e: Exception) {
             return null
@@ -213,7 +213,7 @@ class V2RayUrlParser {
                 method = method,
                 server = server,
                 port = port,
-                name = name
+                name = name,
             )
         } catch (e: Exception) {
             return null

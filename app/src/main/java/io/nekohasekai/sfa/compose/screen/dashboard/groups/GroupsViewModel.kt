@@ -493,9 +493,16 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
                         mergedGroups
                     }
 
+                    val isFirstLoad = groups.isEmpty()
+                    val updatedExpandedGroups = if (isFirstLoad) {
+                        allGroupTags
+                    } else {
+                        expandedGroups.intersect(allGroupTags)
+                    }
+
                     copy(
                         groups = updatedGroups,
-                        expandedGroups = allGroupTags,
+                        expandedGroups = updatedExpandedGroups,
                         isLoading = false,
                     )
                 }
@@ -522,6 +529,48 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
         if (newMode == ServerSelectionMode.AUTO) {
             android.util.Log.d("GroupsViewModel", "AUTO mode activated, starting URL test for $groupTag")
             urlTestAndSelectBest(groupTag, getProfileId())
+        }
+    }
+
+    private fun isIPAddress(address: String): Boolean {
+        val ipv4Pattern = "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+        val ipv6Pattern = "^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$"
+        return address.matches(ipv4Pattern.toRegex()) || address.matches(ipv6Pattern.toRegex())
+    }
+
+    private fun resolveDomain(domain: String): String? = try {
+        val addresses = java.net.InetAddress.getAllByName(domain)
+        addresses.firstOrNull()?.hostAddress
+    } catch (e: Exception) {
+        android.util.Log.w("GroupsViewModel", "Failed to resolve domain: $domain", e)
+        null
+    }
+
+    private fun resolveDomainsInConfig(configJson: String): String {
+        return try {
+            val jsonObject = JSONObject(configJson)
+            val outbounds = jsonObject.optJSONArray("outbounds") ?: return configJson
+
+            val skipTypes = setOf("selector", "urltest", "direct", "block", "dns", "reject", "blackhole", "loopback")
+
+            for (i in 0 until outbounds.length()) {
+                val outbound = outbounds.getJSONObject(i)
+                val server = outbound.optString("server", "")
+                val type = outbound.optString("type", "")
+
+                if (type !in skipTypes && server.isNotEmpty() && !isIPAddress(server)) {
+                    val resolvedIP = resolveDomain(server)
+                    if (resolvedIP != null) {
+                        outbound.put("server", resolvedIP)
+                        android.util.Log.d("GroupsViewModel", "Resolved $server -> $resolvedIP")
+                    }
+                }
+            }
+
+            jsonObject.toString(2)
+        } catch (e: Exception) {
+            android.util.Log.e("GroupsViewModel", "Error resolving domains", e)
+            configJson
         }
     }
 
@@ -619,10 +668,29 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
                     }
                 }
 
-                configFile.writeText(configJson.toString(2))
-
                 Libbox.checkConfig(configJson.toString())
+
+                val finalContent = if (profile.typed.forceResolve) {
+                    resolveDomainsInConfig(configJson.toString())
+                } else {
+                    configJson.toString(2)
+                }
+                configFile.writeText(finalContent)
                 Libbox.newStandaloneCommandClient().serviceReload()
+
+                withContext(Dispatchers.Main) {
+                    updateState { copy(isLoading = true) }
+                }
+
+                kotlinx.coroutines.delay(500)
+
+                if (isUsingSharedClient) {
+                    commandClient.addHandler(this@GroupsViewModel)
+                } else {
+                    commandClient.disconnect()
+                    kotlinx.coroutines.delay(200)
+                    commandClient.connect()
+                }
             } catch (e: Exception) {
                 sendError(e)
             }

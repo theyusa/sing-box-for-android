@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.compose.screen.dashboard.groups
 
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -23,18 +24,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import android.util.Log
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.SelectAll
-import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
@@ -74,6 +74,26 @@ import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.compose.model.Group
 import io.nekohasekai.sfa.compose.model.GroupItem
 import io.nekohasekai.sfa.constant.Status
+
+private fun formatServerTag(tag: String): String {
+    var cleanedTag = tag.trim()
+
+    val uuidPattern = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}".toRegex()
+    cleanedTag = cleanedTag.replace(uuidPattern, "").trim()
+
+    cleanedTag = cleanedTag.replace("\\s+".toRegex(), " ")
+
+    val portPattern = "\\s*:\\s*(\\d+)\\s*$".toRegex()
+    val portMatch = portPattern.find(cleanedTag)
+    if (portMatch != null) {
+        val port = portMatch.groupValues[1]
+        cleanedTag = cleanedTag.replace(portPattern, ":$port")
+    }
+
+    cleanedTag = cleanedTag.replace("\\s+".toRegex(), " ").trim()
+
+    return cleanedTag.ifEmpty { tag.trim() }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -178,10 +198,12 @@ fun GroupsScreen(
                     onToggleExpanded = remember { { onToggleExpanded(group.tag) } },
                     onItemSelected = remember { { itemTag -> onItemSelected(group.tag, itemTag) } },
                     onUrlTest = remember { { onUrlTest(group.tag) } },
-                    onServerLongPress = remember { { itemTag ->
-                        Log.d("GroupsScreen", "Long press on server: $itemTag in group: ${group.tag}")
-                        selectedServer = group.tag to itemTag
-                    } },
+                    onServerLongPress = remember {
+                        { itemTag ->
+                            Log.d("GroupsScreen", "Long press on server: $itemTag in group: ${group.tag}")
+                            selectedServer = group.tag to itemTag
+                        }
+                    },
                     onToggleMode = remember { { viewModel.toggleSelectionMode(group.tag) } },
                     selectionMode = uiState.serverSelectionMode[group.tag] ?: ServerSelectionMode.SELECT,
                 )
@@ -563,7 +585,7 @@ private fun ProxyChip(item: GroupItem, isSelected: Boolean, isSelectable: Boolea
             ) {
                 // First line: Name
                 Text(
-                    text = item.tag,
+                    text = formatServerTag(item.tag),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                     color =
@@ -612,7 +634,7 @@ private fun ProxyChip(item: GroupItem, isSelected: Boolean, isSelectable: Boolea
 
     Surface(
         modifier = surfaceModifier.combinedClickable(
-            onClick = if (isSelectable) onClick else ({ -> Unit }),
+            onClick = if (isSelectable) onClick else ({ Unit }),
             onLongClick = onLongPress,
         ),
         shape = surfaceShape,

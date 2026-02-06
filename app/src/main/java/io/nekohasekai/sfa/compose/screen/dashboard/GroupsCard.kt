@@ -9,6 +9,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -73,6 +75,26 @@ import io.nekohasekai.sfa.compose.topbar.OverrideTopBar
 import io.nekohasekai.sfa.constant.Status
 import io.nekohasekai.sfa.utils.CommandClient
 
+private fun formatServerTag(tag: String): String {
+    var cleanedTag = tag.trim()
+
+    val uuidPattern = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}".toRegex()
+    cleanedTag = cleanedTag.replace(uuidPattern, "").trim()
+
+    cleanedTag = cleanedTag.replace("\\s+".toRegex(), " ")
+
+    val portPattern = "\\s*:\\s*(\\d+)\\s*$".toRegex()
+    val portMatch = portPattern.find(cleanedTag)
+    if (portMatch != null) {
+        val port = portMatch.groupValues[1]
+        cleanedTag = cleanedTag.replace(portPattern, ":$port")
+    }
+
+    cleanedTag = cleanedTag.replace("\\s+".toRegex(), " ").trim()
+
+    return cleanedTag.ifEmpty { tag.trim() }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GroupsCard(
@@ -80,6 +102,7 @@ fun GroupsCard(
     commandClient: CommandClient? = null,
     viewModel: GroupsViewModel? = null,
     showTopBar: Boolean = false,
+    onServerLongPress: (String, String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     val actualViewModel: GroupsViewModel = viewModel ?: viewModel(
@@ -136,6 +159,10 @@ fun GroupsCard(
         remember(actualViewModel) {
             { groupTag: String -> actualViewModel.urlTest(groupTag) }
         }
+    val onServerLongPressInternal =
+        remember(actualViewModel) {
+            { groupTag: String, itemTag: String -> actualViewModel.openServerEditor(groupTag, itemTag) }
+        }
 
     // Only update service status when it actually changes
     LaunchedEffect(serviceStatus) {
@@ -169,6 +196,10 @@ fun GroupsCard(
         onToggleExpanded = onToggleExpanded,
         onItemSelected = onItemSelected,
         onUrlTest = onUrlTest,
+        onServerLongPress = { groupTag, itemTag ->
+            actualViewModel.openServerEditor(groupTag, itemTag)
+            onServerLongPress(groupTag, itemTag)
+        },
         modifier = modifier,
     )
 }
@@ -179,6 +210,7 @@ private fun GroupsCardContent(
     onToggleExpanded: (String) -> Unit,
     onItemSelected: (String, String) -> Unit,
     onUrlTest: (String) -> Unit,
+    onServerLongPress: (String, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -235,6 +267,7 @@ private fun GroupsCardContent(
                         onToggleExpanded = { onToggleExpanded(group.tag) },
                         onItemSelected = { itemTag -> onItemSelected(group.tag, itemTag) },
                         onUrlTest = { onUrlTest(group.tag) },
+                        onServerLongPress = { itemTag -> onServerLongPress(group.tag, itemTag) },
                     )
                 }
             }
@@ -250,6 +283,7 @@ private fun ProxyGroupItem(
     onToggleExpanded: () -> Unit,
     onItemSelected: (String) -> Unit,
     onUrlTest: () -> Unit,
+    onServerLongPress: (String) -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -393,6 +427,7 @@ private fun ProxyGroupItem(
                         selectedTag = group.selected,
                         isSelectable = group.selectable,
                         onItemSelected = onItemSelected,
+                        onServerLongPress = onServerLongPress,
                     )
                 }
             }
@@ -401,7 +436,7 @@ private fun ProxyGroupItem(
 }
 
 @Composable
-private fun ProxyItemsList(items: List<GroupItem>, selectedTag: String, isSelectable: Boolean, onItemSelected: (String) -> Unit) {
+private fun ProxyItemsList(items: List<GroupItem>, selectedTag: String, isSelectable: Boolean, onItemSelected: (String) -> Unit, onServerLongPress: (String) -> Unit) {
     val itemsPerRow = 2
     val chunkedItems =
         remember(items) {
@@ -430,6 +465,7 @@ private fun ProxyItemsList(items: List<GroupItem>, selectedTag: String, isSelect
                                 isSelected = item.tag == selectedTag,
                                 isSelectable = isSelectable,
                                 onClick = { onItemSelected(item.tag) },
+                                onLongPress = { onServerLongPress(item.tag) },
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
@@ -445,7 +481,7 @@ private fun ProxyItemsList(items: List<GroupItem>, selectedTag: String, isSelect
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ProxyChip(item: GroupItem, isSelected: Boolean, isSelectable: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun ProxyChip(item: GroupItem, isSelected: Boolean, isSelectable: Boolean, onClick: () -> Unit, onLongPress: () -> Unit, modifier: Modifier = Modifier) {
     // Use simpler, faster animations
     val animatedElevation by animateFloatAsState(
         targetValue = if (isSelected) 6.dp.value else 1.dp.value,
@@ -485,7 +521,7 @@ private fun ProxyChip(item: GroupItem, isSelected: Boolean, isSelectable: Boolea
             ) {
                 // First line: Name
                 Text(
-                    text = item.tag,
+                    text = formatServerTag(item.tag),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                     color =
@@ -535,7 +571,10 @@ private fun ProxyChip(item: GroupItem, isSelected: Boolean, isSelectable: Boolea
     if (isSelectable) {
         Surface(
             onClick = onClick,
-            modifier = surfaceModifier,
+            modifier = surfaceModifier.combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongPress,
+            ),
             shape = surfaceShape,
             color = surfaceColor,
             tonalElevation = animatedElevation.dp,
@@ -544,7 +583,10 @@ private fun ProxyChip(item: GroupItem, isSelected: Boolean, isSelectable: Boolea
         )
     } else {
         Surface(
-            modifier = surfaceModifier,
+            modifier = surfaceModifier.combinedClickable(
+                onClick = {},
+                onLongClick = onLongPress,
+            ),
             shape = surfaceShape,
             color = surfaceColor,
             tonalElevation = animatedElevation.dp,

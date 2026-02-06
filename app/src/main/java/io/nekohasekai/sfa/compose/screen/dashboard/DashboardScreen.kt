@@ -398,7 +398,7 @@ private fun ServerEditDialog(
                                 "vmess", "vless" -> "UUID"
                                 "trojan", "shadowsocks" -> "Password"
                                 else -> "UUID/Password"
-                            }
+                            },
                         )
                     },
                     singleLine = true,
