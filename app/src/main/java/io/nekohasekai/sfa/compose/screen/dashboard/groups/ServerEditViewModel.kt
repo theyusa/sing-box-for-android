@@ -40,7 +40,7 @@ class ServerEditViewModel : BaseViewModel<ServerEditUiState, ServerEditEvent>() 
         }
     }
 
-    override val uiState: StateFlow<ServerEditUiState> = super.uiState
+
 
     override fun createInitialState() = ServerEditUiState()
 
@@ -71,10 +71,12 @@ class ServerEditViewModel : BaseViewModel<ServerEditUiState, ServerEditEvent>() 
                         val editState = parseOutboundToState(outbound, type)
 
                         withContext(Dispatchers.Main) {
-                            _uiState.value = _uiState.value.copy(
-                                isLoading = false,
-                                serverConfig = editState,
-                            )
+                            updateState {
+                                copy(
+                                    isLoading = false,
+                                    serverConfig = editState,
+                                )
+                            }
                         }
                         return@launch
                     }
