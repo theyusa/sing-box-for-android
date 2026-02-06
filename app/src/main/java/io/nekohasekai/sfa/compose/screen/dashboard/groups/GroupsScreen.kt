@@ -27,7 +27,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.AutoMirrored.Filled.TouchApp
+import androidx.compose.material.icons.automirrored.filled.TouchApp as AutoMirroredTouchApp
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -385,7 +385,7 @@ private fun ProxyGroupCard(
                                     modifier = Modifier.size(40.dp),
                                 ) {
                                     Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.TouchApp,
+                                        imageVector = Icons.AutoMirroredTouchApp,
                                         contentDescription = "Toggle Mode",
                                         modifier = Modifier.size(20.dp),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,

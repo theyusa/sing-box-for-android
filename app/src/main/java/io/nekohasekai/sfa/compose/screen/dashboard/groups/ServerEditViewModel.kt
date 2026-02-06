@@ -40,17 +40,17 @@ class ServerEditViewModel : BaseViewModel<ServerEditUiState, ServerEditEvent>() 
         }
     }
 
-    private val _uiState = MutableStateFlow(ServerEditUiState())
-    val uiState: StateFlow<ServerEditUiState> = _uiState.asStateFlow()
+    override val uiState: StateFlow<ServerEditUiState> = super.uiState
 
     override fun createInitialState() = ServerEditUiState()
 
     fun loadServerConfig(groupTag: String, serverTag: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                _uiState.value = _uiState.value.copy(isLoading = true)
+                updateState { copy(isLoading = true) }
 
-                val profileId = io.nekohasekai.sfa.database.ProfileManager.getProfileId() ?: return@launch
+                val profileId = io.nekohasekai.sfa.database.Settings.selectedProfile
+                if (profileId == 0L) return@launch
                 val profile = io.nekohasekai.sfa.database.ProfileManager.get(profileId) ?: return@launch
                 val configFile = File(profile.typed.path)
 
@@ -95,9 +95,10 @@ class ServerEditViewModel : BaseViewModel<ServerEditUiState, ServerEditEvent>() 
     fun saveServerConfig(editedConfig: ServerEditState) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                _uiState.value = _uiState.value.copy(isSaving = true)
+                updateState { copy(isSaving = true) }
 
-                val profileId = io.nekohasekai.sfa.database.ProfileManager.getProfileId() ?: return@launch
+                val profileId = io.nekohasekai.sfa.database.Settings.selectedProfile
+                if (profileId == 0L) return@launch
                 val profile = ProfileManager.get(profileId) ?: return@launch
                 val configFile = File(profile.typed.path)
 
@@ -121,7 +122,7 @@ class ServerEditViewModel : BaseViewModel<ServerEditUiState, ServerEditEvent>() 
                 if (!found) {
                     withContext(Dispatchers.Main) {
                         sendEvent(ServerEditEvent.Error("Server not found in config"))
-                        _uiState.value = _uiState.value.copy(isSaving = false)
+                        updateState { copy(isSaving = false) }
                     }
                     return@launch
                 }
@@ -133,14 +134,14 @@ class ServerEditViewModel : BaseViewModel<ServerEditUiState, ServerEditEvent>() 
                 Libbox.newStandaloneCommandClient().serviceReload()
 
                 withContext(Dispatchers.Main) {
-                    _uiState.value = _uiState.value.copy(isSaving = false)
+                    updateState { copy(isSaving = false) }
                     sendEvent(ServerEditEvent.ConfigSaved)
                 }
             } catch (e: Exception) {
                 Log.e("ServerEditViewModel", "Error saving server config", e)
                 withContext(Dispatchers.Main) {
                     sendEvent(ServerEditEvent.Error(e.message ?: "Failed to save"))
-                    _uiState.value = _uiState.value.copy(isSaving = false)
+                    updateState { copy(isSaving = false) }
                 }
             }
         }

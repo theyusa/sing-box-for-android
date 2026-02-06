@@ -17,6 +17,7 @@ import io.nekohasekai.sfa.utils.AppLifecycleObserver
 import io.nekohasekai.sfa.utils.CommandClient
 import io.nekohasekai.sfa.utils.HTTPClient
 import io.nekohasekai.sfa.utils.SubscriptionImportHandler
+import io.nekohasekai.sfa.utils.SubscriptionImportResult
 import io.nekohasekai.sfa.utils.SubscriptionParser
 import io.nekohasekai.sfa.utils.V2RayUrlParser
 import kotlinx.coroutines.Dispatchers
@@ -763,7 +764,7 @@ class DashboardViewModel :
                 val importHandler = SubscriptionImportHandler(Application.application, subscriptionParser)
 
                 when (val result = importHandler.importSubscription(profile.typed.remoteURL, profileId)) {
-                    is SubscriptionImportHandler.SubscriptionImportResult.Success -> {
+                    is SubscriptionImportResult.Success -> {
                         withContext(Dispatchers.Main) {
                             updateState { copy(updatingProfileId = null, updatedProfileId = profileId) }
                         }
@@ -779,7 +780,7 @@ class DashboardViewModel :
                             }
                         }
                     }
-                    is SubscriptionImportHandler.SubscriptionImportResult.Error -> {
+                    is SubscriptionImportResult.Error -> {
                         sendErrorMessage("Failed to refresh subscription: ${result.message}")
                         withContext(Dispatchers.Main) {
                             updateState { copy(updatingProfileId = null) }
