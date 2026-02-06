@@ -856,69 +856,12 @@ class DashboardViewModel :
 
                 android.util.Log.d("DashboardViewModel", "Force resolve: ${profile.typed.forceResolve}")
 
-                val configFile = java.io.File(profile.typed.path)
-                if (!configFile.exists()) {
-                    withContext(Dispatchers.Main) {
-                        sendErrorMessage("Config file not found")
-                    }
-                    return@launch
-                }
-
-                val configJson = org.json.JSONObject(configFile.readText())
-                val outbounds = configJson.optJSONArray("outbounds") ?: org.json.JSONArray()
-
-                android.util.Log.d("DashboardViewModel", "Loading servers from config: ${outbounds.length()} outbounds")
-
-                val servers = mutableListOf<SubscriptionServer>()
-                for (i in 0 until outbounds.length()) {
-                    val outbound = outbounds.getJSONObject(i)
-                    val type = outbound.optString("type", "")
-                    if (type in listOf("vmess", "vless", "trojan", "shadowsocks")) {
-                        var server = outbound.optString("server", "")
-                        val tag = outbound.optString("tag", "")
-                        val port = outbound.optInt("server_port", 0)
-                        val uuid = when (type) {
-                            "vmess", "vless" -> outbound.optString("uuid", null)
-                            "trojan" -> outbound.optString("password", null)
-                            "shadowsocks" -> outbound.optString("password", null)
-                            else -> null
-                        }
-
-                        // Force resolve aktifse domain'yi IP'ye çevir
-                        if (profile.typed.forceResolve && server.isNotEmpty() && !isIPAddress(server)) {
-                            val resolvedIP = resolveDomain(server)
-                            if (resolvedIP != null) {
-                                android.util.Log.d("DashboardViewModel", "Resolved $server -> $resolvedIP for sheet")
-                                server = resolvedIP
-                            }
-                        }
-
-                        if (tag.isNotEmpty() && server.isNotEmpty() && port > 0) {
-                            servers.add(SubscriptionServer(tag, type, server, port, uuid))
-                            android.util.Log.d("DashboardViewModel", "Loaded server: $tag ($type) $server:$port")
-                        }
-                    }
-                }
-
-                android.util.Log.d("DashboardViewModel", "Total servers loaded: ${servers.size}")
-
-                withContext(Dispatchers.Main) {
-                    updateState {
-                        copy(
-                            subscriptionServers = servers,
-                            showSubscriptionGroupsSheet = true,
-                        )
-                    }
-                }
+                loadServersFromConfig(profile)
             } catch (e: Exception) {
-                android.util.Log.e("DashboardViewModel", "Error loading servers from config", e)
+                android.util.Log.e("DashboardViewModel", "Error loading servers", e)
                 sendErrorMessage("Error loading servers: ${e.message}")
             }
         }
-    }
-
-    fun hideSubscriptionGroupsSheet() {
-        updateState { copy(showSubscriptionGroupsSheet = false) }
     }
 
     private fun isIPAddress(address: String): Boolean {
@@ -1010,7 +953,6 @@ ${if (server.uuid != null) "${if (server.type in listOf("vmess", "vless")) "UUID
                     // Reload servers
                     loadServersFromConfig(profile)
                     sendGlobalEvent(UiEvent.RequestReconnectService)
-                    sendGlobalEvent(UiEvent.ShowMessage("Server deleted successfully"))
                 } else {
                     sendErrorMessage("Server not found")
                 }
@@ -1082,7 +1024,6 @@ ${if (server.uuid != null) "${if (server.type in listOf("vmess", "vless")) "UUID
                     hideServerEditDialog()
                     loadServersFromConfig(profile)
                     sendGlobalEvent(UiEvent.RequestReconnectService)
-                    sendGlobalEvent(UiEvent.ShowMessage("Server updated successfully"))
                 }
             } catch (e: Exception) {
                 android.util.Log.e("DashboardViewModel", "Error saving server", e)
@@ -1130,8 +1071,8 @@ ${if (server.uuid != null) "${if (server.type in listOf("vmess", "vless")) "UUID
                 val outbound = outbounds.getJSONObject(i)
                 val type = outbound.optString("type", "")
                 if (type in listOf("vmess", "vless", "trojan", "shadowsocks")) {
+                    var server = outbound.optString("server", "")
                     val tag = outbound.optString("tag", "")
-                    val server = outbound.optString("server", "")
                     val port = outbound.optInt("server_port", 0)
                     val uuid = when (type) {
                         "vmess", "vless" -> outbound.optString("uuid", null)
@@ -1139,6 +1080,14 @@ ${if (server.uuid != null) "${if (server.type in listOf("vmess", "vless")) "UUID
                         "shadowsocks" -> outbound.optString("password", null)
                         else -> null
                     }
+
+                    if (profile.typed.forceResolve && server.isNotEmpty() && !isIPAddress(server)) {
+                        val resolvedIP = resolveDomain(server)
+                        if (resolvedIP != null) {
+                            server = resolvedIP
+                        }
+                    }
+
                     if (tag.isNotEmpty() && server.isNotEmpty() && port > 0) {
                         servers.add(SubscriptionServer(tag, type, server, port, uuid))
                     }
@@ -1167,26 +1116,5 @@ ${if (server.uuid != null) "${if (server.type in listOf("vmess", "vless")) "UUID
                 editingServer = null,
             )
         }
-    }
-}
-
-    fun hideSubscriptionGroupsSheet() {
-        updateState { copy(showSubscriptionGroupsSheet = false) }
-    }
-
-    private fun saveDisabledItems(visibleCards: Set<CardGroup>) {
-        val allItems = CardGroup.values().toSet()
-        // Always ensure Profiles is in visibleCards (cannot be disabled)
-        val actualVisibleCards = visibleCards + CardGroup.Profiles
-        val disabledItems = allItems - actualVisibleCards
-        Settings.dashboardDisabledItems = disabledItems.map { cardGroupToString(it) }.toSet()
-    }
-
-    private fun cardGroupToString(card: CardGroup): String = card.name
-
-    private fun stringToCardGroup(name: String): CardGroup? = try {
-        CardGroup.valueOf(name)
-    } catch (e: IllegalArgumentException) {
-        null
     }
 }

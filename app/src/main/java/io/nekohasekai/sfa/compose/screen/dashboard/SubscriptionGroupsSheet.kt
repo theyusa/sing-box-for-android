@@ -39,7 +39,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,6 +49,7 @@ fun SubscriptionGroupsSheet(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
+
     android.util.Log.d("SubscriptionGroupsSheet", "Showing sheet with ${servers.size} servers")
 
     Surface(
@@ -100,38 +100,7 @@ fun SubscriptionGroupsSheet(
                             context = context,
                             modifier = Modifier.fillMaxWidth(),
                         )
-                        ServerItem(
-                            server = server,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
                         Spacer(modifier = Modifier.height(8.dp))
-                    }
-                }
-            }
-        }
-    }
-}
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                if (servers.isEmpty()) {
-                    Text(
-                        text = "No servers found",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        items(servers) { server ->
-                            ServerItem(
-                                server = server,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                        }
                     }
                 }
             }
