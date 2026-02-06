@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import android.util.Log
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -177,7 +178,10 @@ fun GroupsScreen(
                     onToggleExpanded = remember { { onToggleExpanded(group.tag) } },
                     onItemSelected = remember { { itemTag -> onItemSelected(group.tag, itemTag) } },
                     onUrlTest = remember { { onUrlTest(group.tag) } },
-                    onServerLongPress = remember { { itemTag -> selectedServer = group.tag to itemTag } },
+                    onServerLongPress = remember { { itemTag ->
+                        Log.d("GroupsScreen", "Long press on server: $itemTag in group: ${group.tag}")
+                        selectedServer = group.tag to itemTag
+                    } },
                     onToggleMode = remember { { viewModel.toggleSelectionMode(group.tag) } },
                     selectionMode = uiState.serverSelectionMode[group.tag] ?: ServerSelectionMode.SELECT,
                 )

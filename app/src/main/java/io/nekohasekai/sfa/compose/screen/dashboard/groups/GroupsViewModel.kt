@@ -228,6 +228,7 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
     fun urlTestAndSelectBest(groupTag: String, profileId: Long) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                android.util.Log.d("GroupsViewModel", "Starting URL test for group: $groupTag")
                 val client = Libbox.newStandaloneCommandClient()
 
                 client.urlTest(groupTag)
@@ -244,10 +245,13 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
                     val group = uiState.value.groups.find { it.tag == groupTag }
                     if (group != null) {
                         var foundResults = false
+                        var testedItems = 0
                         group.items.forEach { item ->
                             if (item.urlTestTime > 0) {
+                                testedItems++
                                 foundResults = true
                                 if (item.urlTestDelay > 0) {
+                                    android.util.Log.d("GroupsViewModel", "Server ${item.tag}: ${item.urlTestDelay}ms")
                                     if (bestLatency == null || item.urlTestDelay < bestLatency) {
                                         bestLatency = item.urlTestDelay
                                         bestItemTag = item.tag
@@ -256,9 +260,13 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
                             }
                         }
 
+                        android.util.Log.d("GroupsViewModel", "Tested $testedItems/${group.items.size} items, foundResults=$foundResults, bestItemTag=$bestItemTag, bestLatency=$bestLatency")
+
                         if (foundResults && bestItemTag != null) {
                             if (bestItemTag != group.selected) {
+                                android.util.Log.d("GroupsViewModel", "Selecting best server: $bestItemTag (${bestLatency}ms)")
                                 client.selectOutbound(groupTag, bestItemTag)
+                                lastSelectedServer = groupTag to bestItemTag
                                 withContext(Dispatchers.Main) {
                                     updateState {
                                         copy(
@@ -273,6 +281,8 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
                                         )
                                     }
                                 }
+                            } else {
+                                android.util.Log.d("GroupsViewModel", "Best server already selected: $bestItemTag")
                             }
                             break
                         }
@@ -284,6 +294,7 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
                     }
                 }
             } catch (e: Exception) {
+                android.util.Log.e("GroupsViewModel", "Error in urlTestAndSelectBest", e)
                 sendError(e)
             }
         }
@@ -500,6 +511,8 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
             ServerSelectionMode.SELECT
         }
 
+        android.util.Log.d("GroupsViewModel", "Switching mode for $groupTag from $currentMode to $newMode")
+
         updateState {
             copy(
                 serverSelectionMode = serverSelectionMode + (groupTag to newMode),
@@ -507,6 +520,7 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
         }
 
         if (newMode == ServerSelectionMode.AUTO) {
+            android.util.Log.d("GroupsViewModel", "AUTO mode activated, starting URL test for $groupTag")
             urlTestAndSelectBest(groupTag, getProfileId())
         }
     }
