@@ -80,7 +80,13 @@ class SubscriptionImportHandler(
             profile.typed.lastUpdated = java.util.Date()
             ProfileManager.update(profile)
 
-            Libbox.newStandaloneCommandClient().serviceReload()
+            // Service reload sadece service çalışıyorsa yap
+            try {
+                Libbox.newStandaloneCommandClient().serviceReload()
+                Log.d("SubscriptionImportHandler", "Service reload successful")
+            } catch (e: Exception) {
+                Log.w("SubscriptionImportHandler", "Service reload failed (service may not be running): ${e.message}")
+            }
 
             SubscriptionImportResult.Success(newOutbounds.size, newOutbounds)
         } catch (e: Exception) {
