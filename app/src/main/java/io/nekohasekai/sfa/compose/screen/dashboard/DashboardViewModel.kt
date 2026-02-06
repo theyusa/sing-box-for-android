@@ -770,24 +770,12 @@ class DashboardViewModel :
 
                 val profile = ProfileManager.get(profileId) ?: return@launch
 
-                // Force resolve ayarını geçici olarak devre dışı bırak
-                val originalForceResolve = profile.typed.forceResolve
-                profile.typed.forceResolve = false
-                ProfileManager.update(profile)
-
-                android.util.Log.d("DashboardViewModel", "Force resolve temporarily disabled for update (original: $originalForceResolve)")
-
                 val subscriptionParser = SubscriptionParser(V2RayUrlParser())
                 val importHandler = SubscriptionImportHandler(Application.application, subscriptionParser)
 
                 when (val result = importHandler.importSubscription(profile.typed.remoteURL, profileId)) {
                     is SubscriptionImportResult.Success -> {
                         android.util.Log.d("DashboardViewModel", "Import success: ${result.serverCount} servers, ${result.outbounds.size} outbounds")
-
-                        // Force resolve ayarını geri yükle
-                        profile.typed.forceResolve = originalForceResolve
-                        ProfileManager.update(profile)
-                        android.util.Log.d("DashboardViewModel", "Force resolve restored to: $originalForceResolve")
 
                         val servers = mutableListOf<SubscriptionServer>()
                         for (outbound in result.outbounds) {
@@ -831,10 +819,6 @@ class DashboardViewModel :
                         }
                     }
                     is SubscriptionImportResult.Error -> {
-                        // Force resolve ayarını geri yükle
-                        profile.typed.forceResolve = originalForceResolve
-                        ProfileManager.update(profile)
-
                         sendErrorMessage("Failed to refresh subscription: ${result.message}")
                         withContext(Dispatchers.Main) {
                             updateState { copy(updatingProfileId = null) }
@@ -842,13 +826,6 @@ class DashboardViewModel :
                     }
                 }
             } catch (e: Exception) {
-                // Hata durumunda force resolve ayarını geri yükle
-                val profile = ProfileManager.get(profileId)
-                profile?.let {
-                    profile.typed.forceResolve = it.typed.forceResolve
-                    ProfileManager.update(profile)
-                }
-
                 sendErrorMessage("Failed to refresh subscription: ${e.message}")
                 updateState { copy(updatingProfileId = null) }
             }
