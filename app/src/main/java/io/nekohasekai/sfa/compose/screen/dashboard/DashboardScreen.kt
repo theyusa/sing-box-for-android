@@ -124,9 +124,16 @@ fun DashboardScreen(
     if (uiState.showSubscriptionGroupsSheet) {
         SubscriptionGroupsSheet(
             servers = uiState.subscriptionServers,
+            viewModel = viewModel,
             onDismiss = { viewModel.hideSubscriptionGroupsSheet() },
         )
     }
+
+    // Show server edit dialog
+    ServerEditDialog(
+        uiState = uiState,
+        viewModel = viewModel,
+    )
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -323,4 +330,85 @@ fun isCardAvailableWhenServiceRunning(cardGroup: CardGroup, uiState: DashboardUi
     CardGroup.Connections -> uiState.trafficVisible
     CardGroup.SystemProxy -> uiState.systemProxyVisible
     CardGroup.Profiles -> true // This shouldn't be called for Profiles, but return true for safety
+}
+
+@Composable
+private fun ServerEditDialog(
+    uiState: DashboardUiState,
+    viewModel: DashboardViewModel,
+) {
+    if (!uiState.showServerEditDialog || uiState.editingServer == null) return
+
+    val editState = uiState.editingServer!!
+    var tag by remember { mutableStateOf(editState.tag) }
+    var server by remember { mutableStateOf(editState.server) }
+    var port by remember { mutableStateOf(editState.port.toString()) }
+    var uuid by remember { mutableStateOf(editState.uuid ?: "") }
+
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = { viewModel.hideServerEditDialog() },
+        title = { Text("Edit Server") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                androidx.compose.material3.OutlinedTextField(
+                    value = tag,
+                    onValueChange = {
+                        tag = it
+                        viewModel.updateServerEditField("tag", it)
+                    },
+                    label = { Text("Tag") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                androidx.compose.material3.OutlinedTextField(
+                    value = server,
+                    onValueChange = {
+                        server = it
+                        viewModel.updateServerEditField("server", it)
+                    },
+                    label = { Text("Server") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                androidx.compose.material3.OutlinedTextField(
+                    value = port,
+                    onValueChange = {
+                        port = it
+                        viewModel.updateServerEditField("port", it)
+                    },
+                    label = { Text("Port") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                androidx.compose.material3.OutlinedTextField(
+                    value = uuid,
+                    onValueChange = {
+                        uuid = it
+                        viewModel.updateServerEditField("uuid", it)
+                    },
+                    label = {
+                        Text(
+                            when (editState.type) {
+                                "vmess", "vless" -> "UUID"
+                                "trojan", "shadowsocks" -> "Password"
+                                else -> "UUID/Password"
+                            }
+                        )
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { viewModel.saveServerEdit() }) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { viewModel.hideServerEditDialog() }) {
+                Text("Cancel")
+            }
+        },
+    )
 }

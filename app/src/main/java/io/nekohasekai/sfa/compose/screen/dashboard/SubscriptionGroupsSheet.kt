@@ -45,8 +45,11 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun SubscriptionGroupsSheet(
     servers: List<SubscriptionServer>,
+    viewModel: DashboardViewModel,
     onDismiss: () -> Unit,
 ) {
+    val uiState by viewModel.uiState.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
     android.util.Log.d("SubscriptionGroupsSheet", "Showing sheet with ${servers.size} servers")
 
     Surface(
@@ -93,6 +96,12 @@ fun SubscriptionGroupsSheet(
                     items(servers) { server ->
                         ServerItem(
                             server = server,
+                            viewModel = viewModel,
+                            context = context,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        ServerItem(
+                            server = server,
                             modifier = Modifier.fillMaxWidth(),
                         )
                         Spacer(modifier = Modifier.height(8.dp))
@@ -133,6 +142,8 @@ fun SubscriptionGroupsSheet(
 @Composable
 private fun ServerItem(
     server: SubscriptionServer,
+    viewModel: DashboardViewModel,
+    context: android.content.Context,
     modifier: Modifier = Modifier,
 ) {
     var showActionMenu by remember { mutableStateOf(false) }
@@ -225,7 +236,7 @@ private fun ServerItem(
                         },
                         onClick = {
                             showActionMenu = false
-                            copyServerInfo(server)
+                            viewModel.copyServerInfo(server, context)
                         },
                     )
                     DropdownMenuItem(
@@ -235,7 +246,7 @@ private fun ServerItem(
                         },
                         onClick = {
                             showActionMenu = false
-                            // TODO: Implement edit
+                            viewModel.editServer(server)
                         },
                     )
                     DropdownMenuItem(
@@ -245,23 +256,11 @@ private fun ServerItem(
                         },
                         onClick = {
                             showActionMenu = false
-                            // TODO: Implement delete
+                            viewModel.deleteServer(server)
                         },
                     )
                 }
             }
         }
     }
-}
-
-private fun copyServerInfo(server: SubscriptionServer) {
-    val info = """
-        Type: ${server.type}
-        Tag: ${server.tag}
-        Server: ${server.server}:${server.port}
-        ${if (server.uuid != null) "UUID/Password: ${server.uuid}" else ""}
-    """.trimIndent()
-    
-    // TODO: Implement clipboard copy
-    android.util.Log.d("SubscriptionGroupsSheet", "Copy to clipboard: $info")
 }
