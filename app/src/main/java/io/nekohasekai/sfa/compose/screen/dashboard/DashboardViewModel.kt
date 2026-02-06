@@ -4,6 +4,7 @@ import androidx.lifecycle.viewModelScope
 import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.libbox.OutboundGroup
 import io.nekohasekai.libbox.StatusMessage
+import io.nekohasekai.sfa.Application
 import io.nekohasekai.sfa.bg.BoxService
 import io.nekohasekai.sfa.compose.base.BaseViewModel
 import io.nekohasekai.sfa.compose.base.UiEvent
@@ -15,6 +16,9 @@ import io.nekohasekai.sfa.database.TypedProfile
 import io.nekohasekai.sfa.utils.AppLifecycleObserver
 import io.nekohasekai.sfa.utils.CommandClient
 import io.nekohasekai.sfa.utils.HTTPClient
+import io.nekohasekai.sfa.utils.SubscriptionImportHandler
+import io.nekohasekai.sfa.utils.SubscriptionParser
+import io.nekohasekai.sfa.utils.V2RayUrlParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -746,6 +750,47 @@ class DashboardViewModel :
         return savedDisabled.mapNotNull { stringToCardGroup(it) }
             .filter { it != CardGroup.Profiles }
             .toSet()
+    }
+
+    fun refreshSubscription(profileId: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                updateState { copy(updatingProfileId = profileId) }
+
+                val profile = ProfileManager.get(profileId) ?: return@launch
+
+                val subscriptionParser = SubscriptionParser(V2RayUrlParser())
+                val importHandler = SubscriptionImportHandler(Application.application, subscriptionParser)
+
+                when (val result = importHandler.importSubscription(profile.typed.remoteURL, profileId)) {
+                    is SubscriptionImportHandler.SubscriptionImportResult.Success -> {
+                        withContext(Dispatchers.Main) {
+                            updateState { copy(updatingProfileId = null, updatedProfileId = profileId) }
+                        }
+
+                        withContext(Dispatchers.Main) {
+                            delay(1500)
+                            updateState { copy(updatedProfileId = null) }
+                        }
+
+                        if (profile.id == Settings.selectedProfile) {
+                            withContext(Dispatchers.Main) {
+                                sendGlobalEvent(UiEvent.RequestReconnectService)
+                            }
+                        }
+                    }
+                    is SubscriptionImportHandler.SubscriptionImportResult.Error -> {
+                        sendErrorMessage("Failed to refresh subscription: ${result.message}")
+                        withContext(Dispatchers.Main) {
+                            updateState { copy(updatingProfileId = null) }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                sendErrorMessage("Failed to refresh subscription: ${e.message}")
+                updateState { copy(updatingProfileId = null) }
+            }
+        }
     }
 
     private fun saveDisabledItems(visibleCards: Set<CardGroup>) {

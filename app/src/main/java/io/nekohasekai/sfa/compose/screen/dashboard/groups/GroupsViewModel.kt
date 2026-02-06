@@ -22,11 +22,17 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
+enum class ServerSelectionMode {
+    SELECT,
+    AUTO,
+}
+
 data class GroupsUiState(
     val groups: List<Group> = emptyList(),
     val isLoading: Boolean = false,
     val expandedGroups: Set<String> = emptySet(),
     val showCloseConnectionsSnackbar: Boolean = false,
+    val serverSelectionMode: Map<String, ServerSelectionMode> = emptyMap(),
 )
 
 sealed class GroupsEvent : ScreenEvent {
@@ -458,10 +464,15 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
 
             withContext(Dispatchers.Main) {
                 updateState {
+                    val subscriptionGroupTags = newGroups
+                        .filter { it.items.toList().size > 5 }
+                        .map { it.tag }
+                        .toSet()
+
                     val initialExpandedGroups = if (expandedGroups.isEmpty() && currentGroups.isEmpty()) {
-                        mergedGroups.filter { it.isExpand }.map { it.tag }.toSet()
+                        mergedGroups.filter { it.isExpand }.map { it.tag }.toSet() + subscriptionGroupTags
                     } else {
-                        expandedGroups
+                        expandedGroups + subscriptionGroupTags
                     }
                     copy(
                         groups = mergedGroups,
@@ -469,6 +480,125 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
                         isLoading = false,
                     )
                 }
+            }
+        }
+    }
+
+    fun toggleSelectionMode(groupTag: String) {
+        val currentMode = uiState.value.serverSelectionMode[groupTag] ?: ServerSelectionMode.SELECT
+        val newMode = if (currentMode == ServerSelectionMode.SELECT) {
+            ServerSelectionMode.AUTO
+        } else {
+            ServerSelectionMode.SELECT
+        }
+
+        updateState {
+            copy(
+                serverSelectionMode = serverSelectionMode + (groupTag to newMode),
+            )
+        }
+    }
+
+    fun updateServerConfig(groupTag: String, serverTag: String, editedConfig: ServerEditState) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val profileId = getProfileId()
+                val profile = ProfileManager.get(profileId) ?: return@launch
+                val configFile = File(profile.typed.path)
+
+                val configJson = JSONObject(configFile.readText())
+                val outbounds = configJson.getJSONArray("outbounds")
+
+                for (i in 0 until outbounds.length()) {
+                    val outbound = outbounds.getJSONObject(i)
+
+                    if (outbound.optString("tag") == serverTag) {
+                        when (editedConfig.protocolType) {
+                            "vmess" -> {
+                                outbound.put("server", editedConfig.server)
+                                outbound.put("server_port", editedConfig.server_port)
+                                outbound.put("uuid", editedConfig.uuid)
+                                outbound.put("security", editedConfig.security)
+                                outbound.put("alter_id", editedConfig.alter_id)
+                                outbound.put("network", editedConfig.network)
+
+                                if (editedConfig.tlsEnabled) {
+                                    val tls = JSONObject().apply {
+                                        put("enabled", true)
+                                        if (editedConfig.tlsServerName.isNotEmpty()) {
+                                            put("server_name", editedConfig.tlsServerName)
+                                        }
+                                        if (editedConfig.tlsInsecure) {
+                                            put("insecure", true)
+                                        }
+                                    }
+                                    outbound.put("tls", tls)
+                                } else {
+                                    outbound.remove("tls")
+                                }
+
+                                if (editedConfig.network == "ws") {
+                                    val transport = JSONObject().apply {
+                                        put("type", "ws")
+                                        if (editedConfig.transportHost.isNotEmpty()) {
+                                            put("host", editedConfig.transportHost)
+                                        }
+                                        if (editedConfig.transportPath.isNotEmpty()) {
+                                            put("path", editedConfig.transportPath)
+                                        }
+                                    }
+                                    outbound.put("transport", transport)
+                                } else {
+                                    outbound.remove("transport")
+                                }
+                            }
+                            "vless" -> {
+                                outbound.put("server", editedConfig.server)
+                                outbound.put("server_port", editedConfig.server_port)
+                                outbound.put("uuid", editedConfig.uuid)
+                                outbound.put("network", editedConfig.network)
+
+                                if (editedConfig.tlsEnabled) {
+                                    val tls = JSONObject().apply {
+                                        put("enabled", true)
+                                        if (editedConfig.tlsServerName.isNotEmpty()) {
+                                            put("server_name", editedConfig.tlsServerName)
+                                        }
+                                        if (editedConfig.tlsInsecure) {
+                                            put("insecure", true)
+                                        }
+                                    }
+                                    outbound.put("tls", tls)
+                                } else {
+                                    outbound.remove("tls")
+                                }
+
+                                if (editedConfig.network == "ws") {
+                                    val transport = JSONObject().apply {
+                                        put("type", "ws")
+                                        if (editedConfig.transportHost.isNotEmpty()) {
+                                            put("host", editedConfig.transportHost)
+                                        }
+                                        if (editedConfig.transportPath.isNotEmpty()) {
+                                            put("path", editedConfig.transportPath)
+                                        }
+                                    }
+                                    outbound.put("transport", transport)
+                                } else {
+                                    outbound.remove("transport")
+                                }
+                            }
+                        }
+                        break
+                    }
+                }
+
+                configFile.writeText(configJson.toString(2))
+
+                Libbox.checkConfig(configJson.toString())
+                Libbox.newStandaloneCommandClient().serviceReload()
+            } catch (e: Exception) {
+                sendError(e)
             }
         }
     }

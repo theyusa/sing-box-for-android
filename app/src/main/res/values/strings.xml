@@ -458,4 +458,34 @@
     <string name="delete_server">Delete Server</string>
     <string name="delete_server_confirm">Are you sure you want to delete server \"%s\"?</string>
     <string name="delete">Delete</string>
+
+    <!-- Server Edit -->
+    <string name="server_edit_title">V2Ray Sunucu Düzenle</string>
+    <string name="server_name">Sunucu Adı</string>
+    <string name="server_address">Sunucu Adresi</string>
+    <string name="server_uuid">UUID</string>
+    <string name="server_security">Şifreleme</string>
+    <string name="server_alter_id">Alter ID</string>
+    <string name="server_network">Ağ Türü</string>
+    <string name="server_network_settings">Ağ Ayarları</string>
+    <string name="server_tls_settings">TLS Ayarları</string>
+    <string name="server_tls_enabled">TLS Aktif</string>
+    <string name="server_tls_server_name">TLS Server Name</string>
+    <string name="server_tls_insecure">TLS Güvensiz Mod</string>
+
+    <!-- Subscription -->
+    <string name="refresh_subscription">Aboneliği Yenile</string>
+    <string name="subscription_refresh_success">Abonelik başarıyla güncellendi</string>
+    <string name="subscription_refresh_failed">Abonelik güncellenemedi: %s</string>
+
+    <!-- Parser Errors -->
+    <string name="error_invalid_vmess_url">Geçersiz vmess:// URL</string>
+    <string name="error_invalid_vless_url">Geçersiz vless:// URL</string>
+    <string name="error_subscription_decode">Abonelik kodu çözülemedi</string>
+    <string name="error_no_servers_found">Sunucu bulunamadı</string>
+
+    <!-- Network Types -->
+    <string name="network_tcp">TCP</string>
+    <string name="network_ws">WebSocket</string>
+    <string name="network_grpc">gRPC</string>
 </resources>

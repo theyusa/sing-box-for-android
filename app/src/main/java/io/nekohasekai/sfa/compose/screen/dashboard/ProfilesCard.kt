@@ -96,6 +96,7 @@ fun ProfilesCard(
     onProfileShare: (Profile) -> Unit,
     onProfileShareURL: (Profile) -> Unit,
     onProfileUpdate: (Profile) -> Unit,
+    onProfileRefreshSubscription: (Long) -> Unit = {},
     onProfileMove: (Int, Int) -> Unit,
     onShowAddProfileSheet: () -> Unit,
     onHideAddProfileSheet: () -> Unit,
@@ -292,6 +293,7 @@ fun ProfilesCard(
                     showUpdateSuccess = selectedProfile?.id == updatedProfileId,
                     onEdit = { selectedProfile?.let { onProfileEdit(it) } },
                     onUpdate = { selectedProfile?.let { onProfileUpdate(it) } },
+                    onRefreshSubscription = { selectedProfile?.let { onProfileRefreshSubscription(it.id) } },
                     onShareFile = {
                         selectedProfile?.let {
                             coroutineScope.launch(Dispatchers.IO) {
@@ -696,6 +698,7 @@ private fun ProfileActionRow(
     showUpdateSuccess: Boolean,
     onEdit: () -> Unit,
     onUpdate: () -> Unit,
+    onRefreshSubscription: () -> Unit = {},
     onShareFile: () -> Unit,
     onSaveFile: () -> Unit,
     onSaveJson: () -> Unit,
@@ -707,7 +710,7 @@ private fun ProfileActionRow(
 
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         ActionButton(
             icon = Icons.Default.Edit,
@@ -717,13 +720,10 @@ private fun ProfileActionRow(
 
         if (profile.typed.type == TypedProfile.Type.Remote) {
             ActionButton(
-                icon = when {
-                    showUpdateSuccess -> Icons.Default.Check
-                    else -> Icons.Default.Refresh
-                },
-                contentDescription = stringResource(R.string.update_profile),
-                onClick = onUpdate,
-                enabled = !isUpdating && !showUpdateSuccess,
+                icon = Icons.Default.Refresh,
+                contentDescription = stringResource(R.string.refresh_subscription),
+                onClick = onRefreshSubscription,
+                enabled = !isUpdating,
                 isLoading = isUpdating,
             )
         }

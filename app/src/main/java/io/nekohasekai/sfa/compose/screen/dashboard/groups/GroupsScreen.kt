@@ -27,6 +27,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.AutoMirrored.Filled.TouchApp
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandMore
@@ -85,6 +87,9 @@ fun GroupsScreen(
 
     var selectedServer by remember { mutableStateOf<Pair<String, String>?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showServerEditDialog by remember { mutableStateOf(false) }
+    var editGroupTag by remember { mutableStateOf("") }
+    var editServerTag by remember { mutableStateOf("") }
 
     // Stable callbacks to prevent recomposition
     val onToggleExpanded =
@@ -127,6 +132,20 @@ fun GroupsScreen(
         }
     }
 
+    // Handle OpenServerEditor event
+    LaunchedEffect(viewModel.eventFlow) {
+        viewModel.eventFlow.collect { event ->
+            when (event) {
+                is GroupsEvent.OpenServerEditor -> {
+                    showServerEditDialog = true
+                    editGroupTag = event.groupTag
+                    editServerTag = event.serverTag
+                }
+                else -> {}
+            }
+        }
+    }
+
     if (uiState.isLoading) {
         Box(
             modifier = modifier.fillMaxSize(),
@@ -158,6 +177,7 @@ fun GroupsScreen(
                     onItemSelected = remember { { itemTag -> onItemSelected(group.tag, itemTag) } },
                     onUrlTest = remember { { onUrlTest(group.tag) } },
                     onServerLongPress = remember { { itemTag -> selectedServer = group.tag to itemTag } },
+                    onToggleMode = remember { { viewModel.toggleSelectionMode(group.tag) } },
                 )
             }
         }
@@ -252,6 +272,31 @@ fun GroupsScreen(
             },
         )
     }
+
+    if (showServerEditDialog) {
+        val editViewModel: ServerEditViewModel = viewModel(
+            factory = ServerEditViewModel.Factory,
+        )
+
+        editViewModel.loadServerConfig(editGroupTag, editServerTag)
+
+        val editUiState by editViewModel.uiState.collectAsState()
+
+        ServerEditDialog(
+            serverState = editUiState.serverConfig ?: ServerEditState(),
+            onDismiss = {
+                showServerEditDialog = false
+                editGroupTag = ""
+                editServerTag = ""
+            },
+            onSave = { editedConfig ->
+                viewModel.updateServerConfig(editGroupTag, editServerTag, editedConfig)
+                showServerEditDialog = false
+                editGroupTag = ""
+                editServerTag = ""
+            },
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -263,6 +308,7 @@ private fun ProxyGroupCard(
     onItemSelected: (String) -> Unit,
     onUrlTest: () -> Unit,
     onServerLongPress: (String) -> Unit,
+    onToggleMode: () -> Unit = {},
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -328,6 +374,25 @@ private fun ProxyGroupCard(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
+                            // Mode toggle button
+                            AnimatedVisibility(
+                                visible = group.selectable,
+                                enter = slideInVertically() + fadeIn(),
+                                exit = slideOutVertically() + fadeOut(),
+                            ) {
+                                IconButton(
+                                    onClick = onToggleMode,
+                                    modifier = Modifier.size(40.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.TouchApp,
+                                        contentDescription = "Toggle Mode",
+                                        modifier = Modifier.size(20.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+
                             // URL Test button
                             AnimatedVisibility(
                                 visible = group.selectable,
