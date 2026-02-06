@@ -13,7 +13,7 @@ import org.json.JSONObject
 import java.io.File
 
 sealed class SubscriptionImportResult {
-    data class Success(val serverCount: Int) : SubscriptionImportResult()
+    data class Success(val serverCount: Int, val outbounds: List<org.json.JSONObject>) : SubscriptionImportResult()
     data class Error(val message: String) : SubscriptionImportResult()
 }
 
@@ -71,7 +71,7 @@ class SubscriptionImportHandler(
 
             Libbox.newStandaloneCommandClient().serviceReload()
 
-            SubscriptionImportResult.Success(newOutbounds.size)
+            SubscriptionImportResult.Success(newOutbounds.size, newOutbounds)
         } catch (e: Exception) {
             Log.e("SubscriptionImportHandler", "Error importing subscription", e)
             SubscriptionImportResult.Error(e.message ?: "Failed to import subscription")

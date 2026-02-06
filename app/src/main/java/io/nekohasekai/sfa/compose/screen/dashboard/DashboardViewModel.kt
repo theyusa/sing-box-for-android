@@ -775,26 +775,24 @@ class DashboardViewModel :
 
                 when (val result = importHandler.importSubscription(profile.typed.remoteURL, profileId)) {
                     is SubscriptionImportResult.Success -> {
-                        val configFile = File(profile.typed.path)
-                        val configJson = org.json.JSONObject(configFile.readText())
-                        val outbounds = configJson.optJSONArray("outbounds") ?: org.json.JSONArray()
+                        android.util.Log.d("DashboardViewModel", "Import success: ${result.serverCount} servers, ${result.outbounds.size} outbounds")
 
                         val servers = mutableListOf<SubscriptionServer>()
-                        for (i in 0 until outbounds.length()) {
-                            val outbound = outbounds.getJSONObject(i)
+                        for (outbound in result.outbounds) {
                             val type = outbound.optString("type", "")
-                            if (type in listOf("vmess", "vless", "trojan", "ss")) {
+                            if (type in listOf("vmess", "vless", "trojan", "shadowsocks")) {
                                 val tag = outbound.optString("tag", "")
                                 val server = outbound.optString("server", "")
                                 val port = outbound.optInt("server_port", 0)
                                 val uuid = when (type) {
                                     "vmess", "vless" -> outbound.optString("uuid", null)
                                     "trojan" -> outbound.optString("password", null)
-                                    "ss" -> outbound.optString("password", null)
+                                    "shadowsocks" -> outbound.optString("password", null)
                                     else -> null
                                 }
                                 if (tag.isNotEmpty() && server.isNotEmpty() && port > 0) {
                                     servers.add(SubscriptionServer(tag, type, server, port, uuid))
+                                    android.util.Log.d("DashboardViewModel", "Added server: $tag ($type) $server:$port")
                                 }
                             }
                         }

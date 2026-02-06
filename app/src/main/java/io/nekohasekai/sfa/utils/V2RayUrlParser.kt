@@ -27,6 +27,27 @@ data class VlessConfig(
     val name: String = "",
 )
 
+data class TrojanConfig(
+    val password: String,
+    val server: String,
+    val port: Int,
+    val security: String = "tls",
+    val type: String = "tcp",
+    val host: String = "",
+    val path: String = "",
+    val name: String = "",
+)
+
+data class ShadowsocksConfig(
+    val password: String,
+    val method: String,
+    val server: String,
+    val port: Int,
+    val plugin: String = "",
+    val pluginOpts: String = "",
+    val name: String = "",
+)
+
 class V2RayUrlParser {
 
     fun parseVmessUrl(url: String): VmessConfig? {
@@ -98,6 +119,100 @@ class V2RayUrlParser {
                 type = queryParams["type"] ?: "tcp",
                 host = queryParams["host"] ?: "",
                 path = queryParams["path"] ?: "",
+                name = name
+            )
+        } catch (e: Exception) {
+            return null
+        }
+    }
+
+    fun parseTrojanUrl(url: String): TrojanConfig? {
+        if (!url.startsWith("trojan://")) return null
+
+        try {
+            val parts = url.substring(9).split("?", "#")
+            if (parts.isEmpty()) return null
+
+            val authParts = parts[0].split("@")
+            if (authParts.size != 2) return null
+
+            val password = authParts[0]
+            val serverPort = authParts[1].split(":")
+            if (serverPort.size != 2) return null
+
+            val server = serverPort[0]
+            val port = serverPort[1].toIntOrNull() ?: 443
+
+            val queryParams: Map<String, String> = if (parts.size > 1) {
+                parts[1].split("&").associateNotNull { param ->
+                    val keyValue = param.split("=", limit = 2)
+                    if (keyValue.size == 2) {
+                        keyValue[0] to keyValue[1]
+                    } else {
+                        null
+                    }
+                }
+            } else {
+                emptyMap()
+            }
+
+            val name: String = if (parts.size > 2) {
+                parts[2]
+            } else {
+                "$server:$port"
+            }
+
+            return TrojanConfig(
+                password = password,
+                server = server,
+                port = port,
+                security = queryParams["security"] ?: "tls",
+                type = queryParams["type"] ?: "tcp",
+                host = queryParams["host"] ?: "",
+                path = queryParams["path"] ?: "",
+                name = name
+            )
+        } catch (e: Exception) {
+            return null
+        }
+    }
+
+    fun parseShadowsocksUrl(url: String): ShadowsocksConfig? {
+        if (!url.startsWith("ss://")) return null
+
+        try {
+            val parts = url.substring(5).split("@", "#")
+            if (parts.size < 2) return null
+
+            val methodPassword = try {
+                val decoded = String(Base64.decode(parts[0], Base64.DEFAULT))
+                decoded.split(":")
+            } catch (e: Exception) {
+                return null
+            }
+
+            if (methodPassword.size != 2) return null
+
+            val method = methodPassword[0]
+            val password = methodPassword[1]
+
+            val serverPort = parts[1].split(":")
+            if (serverPort.size != 2) return null
+
+            val server = serverPort[0]
+            val port = serverPort[1].toIntOrNull() ?: 8388
+
+            val name: String = if (parts.size > 2) {
+                parts[2]
+            } else {
+                "$server:$port"
+            }
+
+            return ShadowsocksConfig(
+                password = password,
+                method = method,
+                server = server,
+                port = port,
                 name = name
             )
         } catch (e: Exception) {
