@@ -130,8 +130,12 @@ fun DashboardScreen(
     if (uiState.showSubscriptionGroupsSheet) {
         SubscriptionGroupsSheet(
             servers = uiState.subscriptionServers,
+            selectedServerTag = uiState.selectedServerTag,
             viewModel = viewModel,
             onDismiss = { viewModel.hideSubscriptionGroupsSheet() },
+            onServerSelected = { serverTag ->
+                viewModel.selectServer(serverTag)
+            },
         )
     }
 

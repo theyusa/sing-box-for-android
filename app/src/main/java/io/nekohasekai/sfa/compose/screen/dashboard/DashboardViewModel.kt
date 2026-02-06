@@ -81,6 +81,7 @@ data class DashboardUiState(
     val showProfilePickerSheet: Boolean = false,
     val showSubscriptionGroupsSheet: Boolean = false,
     val subscriptionServers: List<SubscriptionServer> = emptyList(),
+    val selectedServerTag: String? = null,
     val showServerEditDialog: Boolean = false,
     val editingServer: ServerEditState? = null,
     val updatingProfileId: Long? = null,
@@ -1066,10 +1067,16 @@ ${if (server.uuid != null) "${if (server.type in listOf("vmess", "vless")) "UUID
             val configJson = org.json.JSONObject(configFile.readText())
             val outbounds = configJson.optJSONArray("outbounds") ?: org.json.JSONArray()
 
+            var selectedTag: String? = null
             val servers = mutableListOf<SubscriptionServer>()
             for (i in 0 until outbounds.length()) {
                 val outbound = outbounds.getJSONObject(i)
                 val type = outbound.optString("type", "")
+
+                if (type == "selector") {
+                    selectedTag = outbound.optString("selected", null)
+                }
+
                 if (type in listOf("vmess", "vless", "trojan", "shadowsocks")) {
                     var server = outbound.optString("server", "")
                     val tag = outbound.optString("tag", "")
@@ -1098,6 +1105,7 @@ ${if (server.uuid != null) "${if (server.type in listOf("vmess", "vless")) "UUID
                 copy(
                     subscriptionServers = servers,
                     showSubscriptionGroupsSheet = true,
+                    selectedServerTag = selectedTag,
                 )
             }
         } catch (e: Exception) {
@@ -1120,6 +1128,49 @@ ${if (server.uuid != null) "${if (server.type in listOf("vmess", "vless")) "UUID
 
     fun hideSubscriptionGroupsSheet() {
         updateState { copy(showSubscriptionGroupsSheet = false) }
+    }
+
+    fun selectServer(serverTag: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val profile = ProfileManager.get(uiState.value.selectedProfileId)
+                if (profile == null) return@launch
+
+                val configFile = java.io.File(profile.typed.path)
+                val configJson = org.json.JSONObject(configFile.readText())
+                val outbounds = configJson.optJSONArray("outbounds") ?: return@launch
+
+                var found = false
+                for (i in 0 until outbounds.length()) {
+                    val outbound = outbounds.getJSONObject(i)
+                    if (outbound.optString("type") == "selector") {
+                        outbound.put("selected", serverTag)
+                        found = true
+                        android.util.Log.d("DashboardViewModel", "Selected server: $serverTag")
+                        break
+                    }
+                }
+
+                if (found) {
+                    Libbox.checkConfig(configJson.toString())
+
+                    val finalContent = if (profile.typed.forceResolve) {
+                        resolveDomainsInConfig(configJson.toString())
+                    } else {
+                        configJson.toString(2)
+                    }
+                    configFile.writeText(finalContent)
+
+                    withContext(Dispatchers.Main) {
+                        updateState { copy(selectedServerTag = serverTag) }
+                        sendGlobalEvent(UiEvent.RequestReconnectService)
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardViewModel", "Error selecting server", e)
+                sendErrorMessage("Failed to select server: ${e.message}")
+            }
+        }
     }
 
     private fun saveDisabledItems(visibleCards: Set<CardGroup>) {
