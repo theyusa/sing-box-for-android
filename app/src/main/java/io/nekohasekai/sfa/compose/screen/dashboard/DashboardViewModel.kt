@@ -48,6 +48,14 @@ enum class CardWidth {
     Full,
 }
 
+data class SubscriptionServer(
+    val tag: String,
+    val type: String,
+    val server: String,
+    val port: Int,
+    val uuid: String? = null,
+)
+
 data class DashboardUiState(
     val serviceStatus: Status = Status.Stopped,
     val profiles: List<Profile> = emptyList(),
@@ -62,6 +70,8 @@ data class DashboardUiState(
     val showDeprecatedDialog: Boolean = false,
     val showAddProfileSheet: Boolean = false,
     val showProfilePickerSheet: Boolean = false,
+    val showSubscriptionGroupsSheet: Boolean = false,
+    val subscriptionServers: List<SubscriptionServer> = emptyList(),
     val updatingProfileId: Long? = null,
     val updatedProfileId: Long? = null,
     // Status
@@ -765,8 +775,38 @@ class DashboardViewModel :
 
                 when (val result = importHandler.importSubscription(profile.typed.remoteURL, profileId)) {
                     is SubscriptionImportResult.Success -> {
+                        val configFile = File(profile.typed.path)
+                        val configJson = org.json.JSONObject(configFile.readText())
+                        val outbounds = configJson.optJSONArray("outbounds") ?: org.json.JSONArray()
+
+                        val servers = mutableListOf<SubscriptionServer>()
+                        for (i in 0 until outbounds.length()) {
+                            val outbound = outbounds.getJSONObject(i)
+                            val type = outbound.optString("type", "")
+                            if (type in listOf("vmess", "vless", "trojan", "ss")) {
+                                val tag = outbound.optString("tag", "")
+                                val server = outbound.optString("server", "")
+                                val port = outbound.optInt("server_port", 0)
+                                val uuid = when (type) {
+                                    "vmess", "vless" -> outbound.optString("uuid", null)
+                                    "trojan" -> outbound.optString("password", null)
+                                    "ss" -> outbound.optString("password", null)
+                                    else -> null
+                                }
+                                if (tag.isNotEmpty() && server.isNotEmpty() && port > 0) {
+                                    servers.add(SubscriptionServer(tag, type, server, port, uuid))
+                                }
+                            }
+                        }
+
                         withContext(Dispatchers.Main) {
-                            updateState { copy(updatingProfileId = null, updatedProfileId = profileId) }
+                            updateState {
+                                copy(
+                                    updatingProfileId = null,
+                                    updatedProfileId = profileId,
+                                    subscriptionServers = servers,
+                                )
+                            }
                         }
 
                         withContext(Dispatchers.Main) {
@@ -792,6 +832,14 @@ class DashboardViewModel :
                 updateState { copy(updatingProfileId = null) }
             }
         }
+    }
+
+    fun showSubscriptionGroupsSheet() {
+        updateState { copy(showSubscriptionGroupsSheet = true) }
+    }
+
+    fun hideSubscriptionGroupsSheet() {
+        updateState { copy(showSubscriptionGroupsSheet = false) }
     }
 
     private fun saveDisabledItems(visibleCards: Set<CardGroup>) {

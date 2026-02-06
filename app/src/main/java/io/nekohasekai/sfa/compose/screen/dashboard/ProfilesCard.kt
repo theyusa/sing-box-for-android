@@ -97,6 +97,7 @@ fun ProfilesCard(
     onProfileShareURL: (Profile) -> Unit,
     onProfileUpdate: (Profile) -> Unit,
     onProfileRefreshSubscription: (Long) -> Unit = {},
+    onShowGroups: () -> Unit = {},
     onProfileMove: (Int, Int) -> Unit,
     onShowAddProfileSheet: () -> Unit,
     onHideAddProfileSheet: () -> Unit,
@@ -294,6 +295,7 @@ fun ProfilesCard(
                     onEdit = { selectedProfile?.let { onProfileEdit(it) } },
                     onUpdate = { selectedProfile?.let { onProfileUpdate(it) } },
                     onRefreshSubscription = { selectedProfile?.let { onProfileRefreshSubscription(it.id) } },
+                    onShowGroups = onShowGroups,
                     onShareFile = {
                         selectedProfile?.let {
                             coroutineScope.launch(Dispatchers.IO) {
@@ -699,6 +701,7 @@ private fun ProfileActionRow(
     onEdit: () -> Unit,
     onUpdate: () -> Unit,
     onRefreshSubscription: () -> Unit = {},
+    onShowGroups: () -> Unit = {},
     onShareFile: () -> Unit,
     onSaveFile: () -> Unit,
     onSaveJson: () -> Unit,
@@ -725,6 +728,14 @@ private fun ProfileActionRow(
                 onClick = onRefreshSubscription,
                 enabled = !isUpdating,
                 isLoading = isUpdating,
+            )
+        }
+
+        if (profile.typed.type == TypedProfile.Type.Remote) {
+            ActionButton(
+                icon = Icons.Default.DataObject,
+                contentDescription = "Groups",
+                onClick = onShowGroups,
             )
         }
 

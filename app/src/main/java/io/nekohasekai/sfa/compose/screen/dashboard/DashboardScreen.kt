@@ -120,6 +120,14 @@ fun DashboardScreen(
         )
     }
 
+    // Show subscription groups bottom sheet
+    if (uiState.showSubscriptionGroupsSheet) {
+        SubscriptionGroupsSheet(
+            servers = uiState.subscriptionServers,
+            onDismiss = { viewModel.hideSubscriptionGroupsSheet() },
+        )
+    }
+
     Box(
         modifier = Modifier.fillMaxSize(),
     ) {
@@ -187,6 +195,8 @@ fun DashboardScreen(
                                 onProfileShare = viewModel::shareProfile,
                                 onProfileShareURL = viewModel::shareProfileURL,
                                 onProfileUpdate = viewModel::updateProfile,
+                                onProfileRefreshSubscription = viewModel::refreshSubscription,
+                                onShowGroups = viewModel::showSubscriptionGroupsSheet,
                                 onProfileMove = viewModel::moveProfile,
                                 onShowAddProfileSheet = viewModel::showAddProfileSheet,
                                 onHideAddProfileSheet = viewModel::hideAddProfileSheet,
@@ -227,6 +237,8 @@ fun DashboardScreen(
                             onProfileShare = viewModel::shareProfile,
                             onProfileShareURL = viewModel::shareProfileURL,
                             onProfileUpdate = viewModel::updateProfile,
+                            onProfileRefreshSubscription = viewModel::refreshSubscription,
+                            onShowGroups = viewModel::showSubscriptionGroupsSheet,
                             onProfileMove = viewModel::moveProfile,
                             onShowAddProfileSheet = viewModel::showAddProfileSheet,
                             onHideAddProfileSheet = viewModel::hideAddProfileSheet,
