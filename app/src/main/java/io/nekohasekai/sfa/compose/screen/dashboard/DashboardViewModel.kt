@@ -843,6 +843,8 @@ class DashboardViewModel :
                     return@launch
                 }
 
+                android.util.Log.d("DashboardViewModel", "Force resolve: ${profile.typed.forceResolve}")
+
                 val configFile = java.io.File(profile.typed.path)
                 if (!configFile.exists()) {
                     withContext(Dispatchers.Main) {
@@ -861,8 +863,8 @@ class DashboardViewModel :
                     val outbound = outbounds.getJSONObject(i)
                     val type = outbound.optString("type", "")
                     if (type in listOf("vmess", "vless", "trojan", "shadowsocks")) {
+                        var server = outbound.optString("server", "")
                         val tag = outbound.optString("tag", "")
-                        val server = outbound.optString("server", "")
                         val port = outbound.optInt("server_port", 0)
                         val uuid = when (type) {
                             "vmess", "vless" -> outbound.optString("uuid", null)
@@ -870,6 +872,16 @@ class DashboardViewModel :
                             "shadowsocks" -> outbound.optString("password", null)
                             else -> null
                         }
+
+                        // Force resolve aktifse domain'yi IP'ye çevir
+                        if (profile.typed.forceResolve && server.isNotEmpty() && !isIPAddress(server)) {
+                            val resolvedIP = resolveDomain(server)
+                            if (resolvedIP != null) {
+                                android.util.Log.d("DashboardViewModel", "Resolved $server -> $resolvedIP for sheet")
+                                server = resolvedIP
+                            }
+                        }
+
                         if (tag.isNotEmpty() && server.isNotEmpty() && port > 0) {
                             servers.add(SubscriptionServer(tag, type, server, port, uuid))
                             android.util.Log.d("DashboardViewModel", "Loaded server: $tag ($type) $server:$port")
@@ -892,6 +904,20 @@ class DashboardViewModel :
                 sendErrorMessage("Error loading servers: ${e.message}")
             }
         }
+    }
+
+    private fun isIPAddress(address: String): Boolean {
+        val ipv4Pattern = "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+        val ipv6Pattern = "^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$"
+        return address.matches(ipv4Pattern.toRegex()) || address.matches(ipv6Pattern.toRegex())
+    }
+
+    private fun resolveDomain(domain: String): String? = try {
+        val addresses = java.net.InetAddress.getAllByName(domain)
+        addresses.firstOrNull()?.hostAddress
+    } catch (e: Exception) {
+        android.util.Log.w("DashboardViewModel", "Failed to resolve domain: $domain", e)
+        null
     }
 
     fun hideSubscriptionGroupsSheet() {
