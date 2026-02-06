@@ -606,33 +606,17 @@ private fun ProxyChip(item: GroupItem, isSelected: Boolean, isSelectable: Boolea
         }
     }
 
-    if (isSelectable) {
-        Surface(
-            onClick = {},
-            modifier = surfaceModifier.combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongPress,
-            ),
-            shape = surfaceShape,
-            color = surfaceColor,
-            tonalElevation = animatedElevation.dp,
-            border = surfaceBorder,
-            content = content,
-        )
-    } else {
-        Surface(
-            onClick = {},
-            modifier = surfaceModifier.combinedClickable(
-                onClick = {},
-                onLongClick = onLongPress,
-            ),
-            shape = surfaceShape,
-            color = surfaceColor,
-            tonalElevation = animatedElevation.dp,
-            border = surfaceBorder,
-            content = content,
-        )
-    }
+    Surface(
+        modifier = surfaceModifier.combinedClickable(
+            onClick = if (isSelectable) onClick else {},
+            onLongClick = onLongPress,
+        ),
+        shape = surfaceShape,
+        color = surfaceColor,
+        tonalElevation = animatedElevation.dp,
+        border = surfaceBorder,
+        content = content,
+    )
 }
 
 @Composable

@@ -49,6 +49,7 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
     private val _serviceStatus = MutableStateFlow(Status.Stopped)
     val serviceStatus = _serviceStatus.asStateFlow()
     private var lastServiceStatus: Status = Status.Stopped
+    private var lastSelectedServer: Pair<String, String>? = null
 
     init {
         if (sharedCommandClient != null) {
@@ -171,6 +172,8 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
         if (currentGroup?.selected == itemTag) {
             return
         }
+
+        lastSelectedServer = groupTag to itemTag
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -466,8 +469,21 @@ class GroupsViewModel(private val sharedCommandClient: CommandClient? = null) :
                 updateState {
                     val allGroupTags = mergedGroups.map { it.tag }.toSet()
 
+                    val updatedGroups = if (lastSelectedServer != null) {
+                        val (groupTag, serverTag) = lastSelectedServer!!
+                        mergedGroups.map { group ->
+                            if (group.tag == groupTag) {
+                                group.copy(selected = serverTag)
+                            } else {
+                                group
+                            }
+                        }
+                    } else {
+                        mergedGroups
+                    }
+
                     copy(
-                        groups = mergedGroups,
+                        groups = updatedGroups,
                         expandedGroups = allGroupTags,
                         isLoading = false,
                     )
