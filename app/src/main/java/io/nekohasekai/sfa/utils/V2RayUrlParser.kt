@@ -70,7 +70,7 @@ class V2RayUrlParser {
             val server = serverPort[0]
             val port = serverPort[1].toIntOrNull() ?: 443
 
-            val queryParams = if (parts.size > 1) {
+            val queryParams: Map<String, String> = if (parts.size > 1) {
                 parts[1].split("&").associateNotNull { param ->
                     val keyValue = param.split("=", limit = 2)
                     if (keyValue.size == 2) {
@@ -83,7 +83,7 @@ class V2RayUrlParser {
                 emptyMap()
             }
 
-            val name = if (parts.size > 2) {
+            val name: String = if (parts.size > 2) {
                 parts[2]
             } else {
                 "$server:$port"
@@ -98,7 +98,7 @@ class V2RayUrlParser {
                 type = queryParams["type"] ?: "tcp",
                 host = queryParams["host"] ?: "",
                 path = queryParams["path"] ?: "",
-                name = name,
+                name = name
             )
         } catch (e: Exception) {
             return null
@@ -106,6 +106,17 @@ class V2RayUrlParser {
     }
 
     private inline fun <K, V> Map<String, String>.associateNotNull(transform: (Map.Entry<String, String>) -> Pair<K, V>?): Map<K, V> {
+        val destination = mutableMapOf<K, V>()
+        for (element in this) {
+            val pair = transform(element)
+            if (pair != null) {
+                destination[pair.first] = pair.second
+            }
+        }
+        return destination
+    }
+
+    private inline fun <K, V> List<String>.associateNotNull(transform: (String) -> Pair<K, V>?): Map<K, V> {
         val destination = mutableMapOf<K, V>()
         for (element in this) {
             val pair = transform(element)

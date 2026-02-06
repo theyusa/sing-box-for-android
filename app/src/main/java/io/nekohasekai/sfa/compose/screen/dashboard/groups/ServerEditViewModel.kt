@@ -34,7 +34,9 @@ class ServerEditViewModel : BaseViewModel<ServerEditUiState, ServerEditEvent>() 
     companion object {
         val Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
-            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T = ServerEditViewModel() as T
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                return ServerEditViewModel() as T
+            }
         }
     }
 
@@ -48,8 +50,8 @@ class ServerEditViewModel : BaseViewModel<ServerEditUiState, ServerEditEvent>() 
             try {
                 _uiState.value = _uiState.value.copy(isLoading = true)
 
-                val profileId = ProfileManager.getProfileId() ?: return@launch
-                val profile = ProfileManager.get(profileId) ?: return@launch
+                val profileId = io.nekohasekai.sfa.database.ProfileManager.getProfileId() ?: return@launch
+                val profile = io.nekohasekai.sfa.database.ProfileManager.get(profileId) ?: return@launch
                 val configFile = File(profile.typed.path)
 
                 if (!configFile.exists()) {
@@ -95,7 +97,7 @@ class ServerEditViewModel : BaseViewModel<ServerEditUiState, ServerEditEvent>() 
             try {
                 _uiState.value = _uiState.value.copy(isSaving = true)
 
-                val profileId = ProfileManager.getProfileId() ?: return@launch
+                val profileId = io.nekohasekai.sfa.database.ProfileManager.getProfileId() ?: return@launch
                 val profile = ProfileManager.get(profileId) ?: return@launch
                 val configFile = File(profile.typed.path)
 

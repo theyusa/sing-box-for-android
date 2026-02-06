@@ -133,8 +133,8 @@ fun GroupsScreen(
     }
 
     // Handle OpenServerEditor event
-    LaunchedEffect(viewModel.eventFlow) {
-        viewModel.eventFlow.collect { event ->
+    LaunchedEffect(viewModel.events) {
+        viewModel.events.collect { event ->
             when (event) {
                 is GroupsEvent.OpenServerEditor -> {
                     showServerEditDialog = true
