@@ -38,7 +38,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.compose.base.UiEvent
 import io.nekohasekai.sfa.compose.navigation.NewProfileArgs
-import io.nekohasekai.sfa.compose.screen.dashboard.groups.ServerEditDialog
 import io.nekohasekai.sfa.compose.topbar.OverrideTopBar
 import io.nekohasekai.sfa.constant.Status
 import kotlinx.coroutines.launch
@@ -135,77 +134,16 @@ fun DashboardScreen(
             viewModel = viewModel,
             onDismiss = { viewModel.hideSubscriptionGroupsSheet() },
             onServerSelected = { serverTag ->
-                viewModel.selectServer(serverTag)
+                scope.launch { viewModel.selectServer(serverTag) }
             },
         )
     }
 
     // Show server edit dialog
-
-    Box(
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        val bottomPadding = when {
-            showStartFab -> 88.dp
-            showStatusBar -> 74.dp
-            else -> 0.dp
-        }
-        LazyColumn(
-            modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(bottom = bottomPadding),
-        ) {
-            // Dynamic dashboard cards
-            // Show cards when service is running OR if it's Profiles card (always available)
-            val serviceRunning = uiState.isStatusVisible
-
-            // Filter cards based on availability
-            val actuallyVisibleCards =
-                uiState.visibleCards.filter { cardGroup ->
-                    when (cardGroup) {
-                        CardGroup.Profiles -> true // Profiles card is always available
-                        else -> serviceRunning && isCardAvailableWhenServiceRunning(cardGroup, uiState)
-                    }
-                }.toSet()
-
-            // Process cards to group half-width cards together
-            val cardRenderItems =
-                processCardsForRendering(
-                    actuallyVisibleCards,
-                    uiState.cardWidths,
-                )
-
-            items(cardRenderItems) { renderItem ->
-                if (renderItem.isRow) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        renderItem.cards.forEach { cardGroup ->
-                            DashboardCard(
-                                cardGroup = cardGroup,
-                                uiState = uiState,
-                                viewModel = viewModel,
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                    }
-                } else {
-                    renderItem.cards.forEach { cardGroup ->
-                        DashboardCard(
-                            cardGroup = cardGroup,
-                            uiState = uiState,
-                            viewModel = viewModel,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-                }
-            }
-        }
-    }
+    ServerEditDialog(
+        uiState = uiState,
+        viewModel = viewModel,
+    )
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -405,6 +343,74 @@ fun isCardAvailableWhenServiceRunning(cardGroup: CardGroup, uiState: DashboardUi
 }
 
 @Composable
+private fun ServerEditDialog(
+    uiState: DashboardUiState,
+    viewModel: DashboardViewModel,
+) {
+    if (!uiState.showServerEditDialog || uiState.editingServer == null) return
+
+    val editState = uiState.editingServer!!
+    var tag by remember { mutableStateOf(editState.tag) }
+    var server by remember { mutableStateOf(editState.server) }
+    var port by remember { mutableStateOf(editState.port.toString()) }
+    var uuid by remember { mutableStateOf(editState.uuid ?: "") }
+
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = { viewModel.hideServerEditDialog() },
+        title = { Text("Edit Server") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                androidx.compose.material3.OutlinedTextField(
+                    value = tag,
+                    onValueChange = {
+                        tag = it
+                        viewModel.updateServerEditField("tag", it)
+                    },
+                    label = { Text("Tag") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                androidx.compose.material3.OutlinedTextField(
+                    value = server,
+                    onValueChange = {
+                        server = it
+                        viewModel.updateServerEditField("server", it)
+                    },
+                    label = { Text("Server") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                androidx.compose.material3.OutlinedTextField(
+                    value = port,
+                    onValueChange = {
+                        port = it
+                        viewModel.updateServerEditField("port", it)
+                    },
+                    label = { Text("Port") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                androidx.compose.material3.OutlinedTextField(
+                    value = uuid,
+                    onValueChange = {
+                        uuid = it
+                        viewModel.updateServerEditField("uuid", it)
+                    },
+                    label = {
+                        Text(
+                            when (editState.type) {
+                                "vmess", "vless" -> "UUID"
+                                "trojan", "shadowsocks" -> "Password"
+                                else -> "UUID/Password"
+                            },
+                        )
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
             TextButton(onClick = { viewModel.saveServerEdit() }) {
                 Text("Save")
             }

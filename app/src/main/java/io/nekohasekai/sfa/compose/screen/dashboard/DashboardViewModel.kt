@@ -20,7 +20,6 @@ import io.nekohasekai.sfa.utils.SubscriptionImportHandler
 import io.nekohasekai.sfa.utils.SubscriptionImportResult
 import io.nekohasekai.sfa.utils.SubscriptionParser
 import io.nekohasekai.sfa.utils.V2RayUrlParser
-import io.nekohasekai.sfa.compose.screen.dashboard.groups.ServerEditState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -55,6 +54,15 @@ data class SubscriptionServer(
     val server: String,
     val port: Int,
     val uuid: String? = null,
+)
+
+data class ServerEditState(
+    val originalTag: String,
+    val tag: String,
+    val type: String,
+    val server: String,
+    val port: Int,
+    val uuid: String?,
 )
 
 data class DashboardUiState(
@@ -884,6 +892,24 @@ ${if (server.uuid != null) "${if (server.type in listOf("vmess", "vless")) "UUID
         android.util.Log.d("DashboardViewModel", "Copied server info to clipboard")
     }
 
+    fun editServer(server: SubscriptionServer) {
+        android.util.Log.d("DashboardViewModel", "Editing server: ${server.tag}")
+        val editState = ServerEditState(
+            originalTag = server.tag,
+            tag = server.tag,
+            type = server.type,
+            server = server.server,
+            port = server.port,
+            uuid = server.uuid,
+        )
+        updateState {
+            copy(
+                showServerEditDialog = true,
+                editingServer = editState,
+            )
+        }
+    }
+
     fun deleteServer(server: SubscriptionServer) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -938,6 +964,160 @@ ${if (server.uuid != null) "${if (server.type in listOf("vmess", "vless")) "UUID
         }
     }
 
+    fun updateServerEditField(field: String, value: Any) {
+        val currentEdit = uiState.value.editingServer ?: return
+        val updatedEdit = when (field) {
+            "tag" -> currentEdit.copy(tag = value as String)
+            "server" -> currentEdit.copy(server = value as String)
+            "port" -> currentEdit.copy(port = (value as String).toIntOrNull() ?: currentEdit.port)
+            "uuid" -> currentEdit.copy(uuid = value as String)
+            else -> currentEdit
+        }
+        updateState { copy(editingServer = updatedEdit) }
+    }
+
+    fun saveServerEdit() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val editState = uiState.value.editingServer ?: return@launch
+                val profile = ProfileManager.get(uiState.value.selectedProfileId)
+                if (profile == null) {
+                    sendErrorMessage("No profile selected")
+                    return@launch
+                }
+
+                val configFile = java.io.File(profile.typed.path)
+                val configJson = org.json.JSONObject(configFile.readText())
+                val outbounds = configJson.optJSONArray("outbounds") ?: org.json.JSONArray()
+
+                for (i in 0 until outbounds.length()) {
+                    val outbound = outbounds.getJSONObject(i)
+                    val tag = outbound.optString("tag", "")
+
+                    if (tag == editState.originalTag) {
+                        android.util.Log.d("DashboardViewModel", "Updating server: $tag")
+
+                        when (editState.type) {
+                            "vmess", "vless" -> outbound.put("uuid", editState.uuid ?: "")
+                            "trojan", "shadowsocks" -> outbound.put("password", editState.uuid ?: "")
+                        }
+                        outbound.put("server", editState.server)
+                        outbound.put("server_port", editState.port)
+                        if (tag != editState.tag) {
+                            outbound.put("tag", editState.tag)
+                        }
+
+                        break
+                    }
+                }
+
+                io.nekohasekai.libbox.Libbox.checkConfig(configJson.toString())
+
+                // Force resolve aktifse IP'ye çevir
+                val finalContent = if (profile.typed.forceResolve) {
+                    resolveDomainsInConfig(configJson.toString())
+                } else {
+                    configJson.toString(2)
+                }
+                configFile.writeText(finalContent)
+
+                withContext(Dispatchers.Main) {
+                    hideServerEditDialog()
+                    loadServersFromConfig(profile)
+                    sendGlobalEvent(UiEvent.RequestReconnectService)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardViewModel", "Error saving server", e)
+                sendErrorMessage("Error saving server: ${e.message}")
+            }
+        }
+    }
+
+    private fun resolveDomainsInConfig(configJson: String): String {
+        return try {
+            val jsonObject = org.json.JSONObject(configJson)
+            val outbounds = jsonObject.optJSONArray("outbounds") ?: return configJson
+
+            val skipTypes = setOf("selector", "urltest", "direct", "block", "dns", "reject", "blackhole", "loopback")
+
+            for (i in 0 until outbounds.length()) {
+                val outbound = outbounds.getJSONObject(i)
+                val server = outbound.optString("server", "")
+                val type = outbound.optString("type", "")
+
+                if (type !in skipTypes && server.isNotEmpty() && !isIPAddress(server)) {
+                    val resolvedIP = resolveDomain(server)
+                    if (resolvedIP != null) {
+                        outbound.put("server", resolvedIP)
+                        android.util.Log.d("DashboardViewModel", "Resolved $server -> $resolvedIP")
+                    }
+                }
+            }
+
+            jsonObject.toString(2)
+        } catch (e: Exception) {
+            android.util.Log.e("DashboardViewModel", "Error resolving domains", e)
+            configJson
+        }
+    }
+
+    private fun loadServersFromConfig(profile: io.nekohasekai.sfa.database.Profile) {
+        try {
+            val configFile = java.io.File(profile.typed.path)
+            val configJson = org.json.JSONObject(configFile.readText())
+            val outbounds = configJson.optJSONArray("outbounds") ?: org.json.JSONArray()
+
+            var selectedTag: String? = null
+            val servers = mutableListOf<SubscriptionServer>()
+            for (i in 0 until outbounds.length()) {
+                val outbound = outbounds.getJSONObject(i)
+                val type = outbound.optString("type", "")
+
+                if (type == "selector") {
+                    selectedTag = outbound.optString("selected", null)
+                }
+
+                if (type in listOf("vmess", "vless", "trojan", "shadowsocks")) {
+                    var server = outbound.optString("server", "")
+                    val tag = outbound.optString("tag", "")
+                    val port = outbound.optInt("server_port", 0)
+                    val uuid = when (type) {
+                        "vmess", "vless" -> outbound.optString("uuid", null)
+                        "trojan" -> outbound.optString("password", null)
+                        "shadowsocks" -> outbound.optString("password", null)
+                        else -> null
+                    }
+
+                    if (profile.typed.forceResolve && server.isNotEmpty() && !isIPAddress(server)) {
+                        val resolvedIP = resolveDomain(server)
+                        if (resolvedIP != null) {
+                            server = resolvedIP
+                        }
+                    }
+
+                    if (tag.isNotEmpty() && server.isNotEmpty() && port > 0) {
+                        servers.add(SubscriptionServer(tag, type, server, port, uuid))
+                    }
+                }
+            }
+
+            updateState {
+                copy(
+                    subscriptionServers = servers,
+                    showSubscriptionGroupsSheet = true,
+                    selectedServerTag = selectedTag,
+                )
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("DashboardViewModel", "Error loading servers", e)
+        }
+    }
+
+    fun showServerEditDialog() {
+        updateState { copy(showServerEditDialog = true) }
+    }
+
+    fun hideServerEditDialog() {
         updateState {
             copy(
                 showServerEditDialog = false,

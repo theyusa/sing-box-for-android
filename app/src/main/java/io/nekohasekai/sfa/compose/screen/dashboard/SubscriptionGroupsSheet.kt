@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -61,8 +60,6 @@ fun SubscriptionGroupsSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        windowInsets = androidx.compose.foundation.layout.WindowInsets(0.dp),
-        dragHandle = null,
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -105,7 +102,7 @@ fun SubscriptionGroupsSheet(
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(max = 500.dp),
+                            .heightIn(max = 400.dp),
                     ) {
                         items(servers) { server ->
                             ServerItem(
@@ -158,7 +155,7 @@ private fun ServerItem(
                 modifier = Modifier.weight(1f),
             ) {
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -179,13 +176,23 @@ private fun ServerItem(
                         )
                     }
 
-                    Text(
-                        text = "${server.server}:${server.port}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = server.server,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            text = ":${server.port}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
 
