@@ -141,16 +141,6 @@ fun DashboardScreen(
     }
 
     // Show server edit dialog
-    if (uiState.showServerEditDialog && uiState.editingServer != null) {
-        val editState = uiState.editingServer as io.nekohasekai.sfa.compose.screen.dashboard.groups.ServerEditState
-        ServerEditDialog(
-            serverState = editState,
-            onDismiss = { viewModel.hideServerEditDialog() },
-            onSave = { updatedState ->
-                viewModel.saveServerEdit(updatedState)
-            },
-        )
-    }
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -415,74 +405,6 @@ fun isCardAvailableWhenServiceRunning(cardGroup: CardGroup, uiState: DashboardUi
 }
 
 @Composable
-private fun ServerEditDialog(
-    uiState: DashboardUiState,
-    viewModel: DashboardViewModel,
-) {
-    if (!uiState.showServerEditDialog || uiState.editingServer == null) return
-
-    val editState = uiState.editingServer!!
-    var tag by remember { mutableStateOf(editState.tag) }
-    var server by remember { mutableStateOf(editState.server) }
-    var port by remember { mutableStateOf(editState.port.toString()) }
-    var uuid by remember { mutableStateOf(editState.uuid ?: "") }
-
-    androidx.compose.material3.AlertDialog(
-        onDismissRequest = { viewModel.hideServerEditDialog() },
-        title = { Text("Edit Server") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                androidx.compose.material3.OutlinedTextField(
-                    value = tag,
-                    onValueChange = {
-                        tag = it
-                        viewModel.updateServerEditField("tag", it)
-                    },
-                    label = { Text("Tag") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                androidx.compose.material3.OutlinedTextField(
-                    value = server,
-                    onValueChange = {
-                        server = it
-                        viewModel.updateServerEditField("server", it)
-                    },
-                    label = { Text("Server") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                androidx.compose.material3.OutlinedTextField(
-                    value = port,
-                    onValueChange = {
-                        port = it
-                        viewModel.updateServerEditField("port", it)
-                    },
-                    label = { Text("Port") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                androidx.compose.material3.OutlinedTextField(
-                    value = uuid,
-                    onValueChange = {
-                        uuid = it
-                        viewModel.updateServerEditField("uuid", it)
-                    },
-                    label = {
-                        Text(
-                            when (editState.type) {
-                                "vmess", "vless" -> "UUID"
-                                "trojan", "shadowsocks" -> "Password"
-                                else -> "UUID/Password"
-                            },
-                        )
-                    },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        },
-        confirmButton = {
             TextButton(onClick = { viewModel.saveServerEdit() }) {
                 Text("Save")
             }
