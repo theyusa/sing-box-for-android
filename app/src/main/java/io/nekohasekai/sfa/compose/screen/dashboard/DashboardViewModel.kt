@@ -8,6 +8,7 @@ import io.nekohasekai.sfa.Application
 import io.nekohasekai.sfa.bg.BoxService
 import io.nekohasekai.sfa.compose.base.BaseViewModel
 import io.nekohasekai.sfa.compose.base.UiEvent
+import io.nekohasekai.sfa.compose.screen.dashboard.groups.ServerEditState
 import io.nekohasekai.sfa.constant.Status
 import io.nekohasekai.sfa.database.Profile
 import io.nekohasekai.sfa.database.ProfileManager
@@ -54,15 +55,6 @@ data class SubscriptionServer(
     val server: String,
     val port: Int,
     val uuid: String? = null,
-)
-
-data class ServerEditState(
-    val originalTag: String,
-    val tag: String,
-    val type: String,
-    val server: String,
-    val port: Int,
-    val uuid: String?,
 )
 
 data class DashboardUiState(
@@ -936,7 +928,7 @@ ${if (server.uuid != null) "${if (server.type in listOf("vmess", "vless")) "UUID
 
         return when (type) {
             "vmess" -> {
-                groups.ServerEditState(
+                ServerEditState(
                     tag = outbound.optString("tag", ""),
                     server = outbound.optString("server", ""),
                     server_port = outbound.optInt("server_port", 443),
@@ -954,7 +946,7 @@ ${if (server.uuid != null) "${if (server.type in listOf("vmess", "vless")) "UUID
                 )
             }
             "vless" -> {
-                groups.ServerEditState(
+                ServerEditState(
                     tag = outbound.optString("tag", ""),
                     server = outbound.optString("server", ""),
                     server_port = outbound.optInt("server_port", 443),
@@ -970,7 +962,7 @@ ${if (server.uuid != null) "${if (server.type in listOf("vmess", "vless")) "UUID
                 )
             }
             "trojan" -> {
-                groups.ServerEditState(
+                ServerEditState(
                     tag = outbound.optString("tag", ""),
                     server = outbound.optString("server", ""),
                     server_port = outbound.optInt("server_port", 443),
@@ -986,7 +978,7 @@ ${if (server.uuid != null) "${if (server.type in listOf("vmess", "vless")) "UUID
                 )
             }
             "shadowsocks" -> {
-                groups.ServerEditState(
+                ServerEditState(
                     tag = outbound.optString("tag", ""),
                     server = outbound.optString("server", ""),
                     server_port = outbound.optInt("server_port", 443),
@@ -1002,7 +994,7 @@ ${if (server.uuid != null) "${if (server.type in listOf("vmess", "vless")) "UUID
                 )
             }
             else -> {
-                groups.ServerEditState(
+                ServerEditState(
                     protocolType = type,
                 )
             }
@@ -1064,7 +1056,7 @@ ${if (server.uuid != null) "${if (server.type in listOf("vmess", "vless")) "UUID
     }
 
     fun updateServerEditField(field: String, value: Any) {
-        val currentEdit = uiState.value.editingServer as? groups.ServerEditState ?: return
+        val currentEdit = uiState.value.editingServer as? ServerEditState ?: return
         val updatedEdit = when (field) {
             "tag" -> currentEdit.copy(tag = value as String)
             "server" -> currentEdit.copy(server = value as String)
@@ -1075,7 +1067,7 @@ ${if (server.uuid != null) "${if (server.type in listOf("vmess", "vless")) "UUID
         updateState { copy(editingServer = updatedEdit) }
     }
 
-    fun saveServerEdit(editState: groups.ServerEditState) {
+    fun saveServerEdit(editState: ServerEditState) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val profile = ProfileManager.get(uiState.value.selectedProfileId)
