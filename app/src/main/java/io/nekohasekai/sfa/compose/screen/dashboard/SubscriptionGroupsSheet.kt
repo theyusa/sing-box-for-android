@@ -2,11 +2,10 @@ package io.nekohasekai.sfa.compose.screen.dashboard
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -59,14 +58,16 @@ fun SubscriptionGroupsSheet(
     onServerSelected: (String) -> Unit = {},
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val sheetState = rememberModalBottomSheetState()
 
     android.util.Log.d("SubscriptionGroupsSheet", "Showing sheet with ${servers.size} servers, selected: $selectedServerTag")
 
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        onDismissRequest = null,
     ) {
         Surface(
-            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.85f),
+            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.95f),
         ) {
             Column(
                 modifier = Modifier
@@ -84,7 +85,9 @@ fun SubscriptionGroupsSheet(
                         fontWeight = FontWeight.Bold,
                     )
                     IconButton(
-                        onClick = onDismiss,
+                        onClick = {
+                            onDismiss()
+                        },
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
